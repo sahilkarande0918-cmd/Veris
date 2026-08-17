@@ -14,7 +14,7 @@ decides, and never changes, the verdict.
 | Phase | What | State |
 |---|---|---|
 | 0 | Monorepo, shared schema, health route | done |
-| 1 | Verdict engine: deterministic checks | next |
+| 1 | Verdict engine: deterministic checks | done |
 | 2 | Explanation layer (Groq, explains only) | todo |
 | 3 | Tamper-evident evidence ledger | todo |
 | 4 | Android app (share-sheet intake, evidence panel) | todo |
@@ -63,6 +63,61 @@ curl http://127.0.0.1:8000/health
 ```
 
 Interactive API docs are at http://127.0.0.1:8000/docs.
+
+## Check something
+
+`POST /check` takes raw text -- a whole SMS, a bare domain, a UPI id, a phone
+number, an APK hash -- works out what it is, and returns the evidence.
+
+```bash
+curl -X POST http://127.0.0.1:8000/check -H "Content-Type: application/json" -d '{"input":"https://xn--icicibnk-66g.com/login"}'
+```
+
+That input is a Cyrillic-`а` lookalike of `icicibank.com`. A substring check
+sees nothing wrong with it. Veris returns:
+
+```json
+{
+  "verdict": "likely_scam",
+  "score": 65,
+  "signals": [
+    {
+      "id": "homoglyph_impersonation",
+      "source": "Unicode UTS #39 confusables skeleton",
+      "value": "'icicibаnk.com' renders as 'icicibank.com' (ICICI Bank) using lookalike characters",
+      "observed_at": "2026-08-18T...+00:00",
+      "weight": 65
+    }
+  ],
+  "rules_fired": ["homoglyph_impersonation (+65): ...", "score 65 -> likely_scam (likely_scam >= 60, suspicious >= 30)"]
+}
+```
+
+Note what is *not* in that response: an opinion. The verdict is the arithmetic
+of the signal weights, and every signal names the source it came from.
+
+### What it checks, offline
+
+| Check | Source | Weight |
+|---|---|---|
+| Blocklist hit | PhishTank / URLhaus / OpenPhish local snapshots | 70 |
+| Homoglyph impersonation | Unicode UTS #39 confusable skeleton | 65 |
+| Brand as subdomain | Public Suffix List registrable-domain comparison | 55 |
+| Typosquat | Levenshtein <= 2 vs curated Indian brand list | 45 |
+| Reported UPI VPA | local reported list | 70 |
+| Malformed UPI VPA | NPCI VPA format rules | 30 |
+| Verified brand domain | curated Indian brand list | allowlist |
+
+Scores are summed and capped at 100: `>= 60` is `likely_scam`, `>= 30` is
+`suspicious`, below that `safe`.
+
+### What it adds when online
+
+Safe Browsing v4, VirusTotal v3 (cached 24h for the ~4 req/min free tier),
+RDAP registration date, and the live TLS certificate. All four are
+**enrichment**: if a key is missing or the network is down they contribute
+nothing and the verdict still returns. `VERIS_OFFLINE=1` disables them
+outright.
 
 ## Run the tests
 

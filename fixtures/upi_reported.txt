@@ -1,0 +1,8 @@
+# Locally reported scam UPI VPAs -- SYNTHETIC demo data, see fixtures/README.md
+# In production this is fed by user reports through the Phase 3 ledger.
+# Format: one VPA per line.
+kycupdate2026@ybl
+sbi.refund.claim@okaxis
+instantloan.approve@paytm
+lottery.winner.claim@okhdfcbank
+electricity.bill.due@oksbi

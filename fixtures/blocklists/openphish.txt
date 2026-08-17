@@ -1,0 +1,6 @@
+# OpenPhish seed snapshot -- SYNTHETIC demo data, see fixtures/README.md
+# Refresh with scripts/refresh_blocklists.py.
+https://hdfcbank.com.secure-verify.top/login
+http://xn--hdfcbnk-6fg.com/netbanking
+https://uidai-aadhaar-update.click/kyc
+http://epfo-pf-withdrawal.top/claim

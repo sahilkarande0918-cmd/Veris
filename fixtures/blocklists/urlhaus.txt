@@ -1,0 +1,5 @@
+# URLhaus (abuse.ch) seed snapshot -- SYNTHETIC demo data, see fixtures/README.md
+# Malware distribution URLs. Refresh with scripts/refresh_blocklists.py.
+http://loan-instant-approval.icu/app/InstantLoan.apk
+http://free-recharge-app.icu/download/recharge.apk
+https://pmkisan-yojana-registration.icu/apply.apk

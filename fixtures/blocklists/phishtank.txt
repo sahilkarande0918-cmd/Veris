@@ -1,0 +1,8 @@
+# PhishTank seed snapshot -- SYNTHETIC demo data, see fixtures/README.md
+# Refresh with scripts/refresh_blocklists.py to pull the real feed.
+# Format: one URL per line, blank lines and # comments ignored.
+http://sbi-kyc-verify-online.top/login
+http://hdfcbank-secure-login.top/netbanking
+https://icici-netbanking-update.xyz/verify
+http://axisbank-account-kyc.click/update
+https://paytm-cashback-offer-2026.xyz/claim
