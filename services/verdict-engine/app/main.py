@@ -12,6 +12,7 @@ from verdict import VerdictResult
 from . import ENGINE_VERSION
 from .checks import host_of, registered_domain, run_offline_checks
 from .enrich import enrich, is_offline
+from .explain import explain
 from .rules import decide
 from .subject import classify
 
@@ -22,6 +23,8 @@ class CheckRequest(BaseModel):
     """Raw text from the share sheet, paste box, or scanner."""
 
     input: str
+    explain: bool = True
+    language: str = "mr"  # regional output: "mr" (Marathi) or "hi" (Hindi)
 
 
 @app.get("/health")
@@ -55,7 +58,7 @@ def check(request: CheckRequest) -> VerdictResult:
 
     verdict, score, rules_fired = decide(signals)
 
-    return VerdictResult(
+    result = VerdictResult(
         subject=subject,
         verdict=verdict,
         score=score,
@@ -63,3 +66,9 @@ def check(request: CheckRequest) -> VerdictResult:
         rules_fired=rules_fired,
         engine_version=ENGINE_VERSION,
     )
+
+    # The verdict is fixed by this point. The explainer is handed a finished
+    # result and can only attach prose to it.
+    if request.explain:
+        result.explanation = explain(result, request.language)
+    return result

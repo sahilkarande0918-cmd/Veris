@@ -15,7 +15,7 @@ decides, and never changes, the verdict.
 |---|---|---|
 | 0 | Monorepo, shared schema, health route | done |
 | 1 | Verdict engine: deterministic checks | done |
-| 2 | Explanation layer (Groq, explains only) | todo |
+| 2 | Explanation layer (Groq, explains only) | done |
 | 3 | Tamper-evident evidence ledger | todo |
 | 4 | Android app (share-sheet intake, evidence panel) | todo |
 | 5 | Point-of-attack features (APK, call screening) | todo |
@@ -110,6 +110,34 @@ of the signal weights, and every signal names the source it came from.
 
 Scores are summed and capped at 100: `>= 60` is `likely_scam`, `>= 30` is
 `suspicious`, below that `safe`.
+
+### The explanation layer
+
+`POST /check` also returns an `explanation` in English and a regional language
+(`"language": "mr"` for Marathi, `"hi"` for Hindi). It is written by a
+Groq-hosted model that is handed **only** the structured evidence.
+
+The model is fenced in three ways, because an unfenced LLM in a fraud tool is
+a liability:
+
+1. **Structural.** The `Explanation` type has no verdict field. Any `verdict`
+   key the model returns is dropped.
+2. **Contradiction guard.** Prose arguing against the verdict it is meant to
+   explain is discarded and re-prompted.
+3. **Invented-source guard.** If the text name-drops VirusTotal or RDAP when
+   no such signal was gathered, it is discarded.
+
+After two failed attempts -- or with no API key, no network, or
+`VERIS_OFFLINE=1` -- it falls back to a deterministic template built from the
+same signals. The fallback is not a degraded mode; it is the offline demo
+path, and it produces real Marathi and Hindi:
+
+> ही बहुधा फसवणूक आहे. कोणतीही वैयक्तिक माहिती किंवा OTP देऊ नका...
+> या पत्त्यात खऱ्या बँकेच्या नावासारखी दिसणारी बनावट अक्षरे वापरली आहेत.
+
+Set `GROQ_MODEL` if your account has different models available. Groq retired
+`llama-3.3-70b-versatile` on 2026-08-16; the default is now
+`openai/gpt-oss-120b`.
 
 ### What it adds when online
 
