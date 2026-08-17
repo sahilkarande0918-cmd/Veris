@@ -6,4 +6,16 @@ app/__init__.py), so a test module can `from verdict import ...` regardless of
 which test file pytest happens to collect first.
 """
 
+import pytest
+
 import app  # noqa: F401
+
+
+@pytest.fixture(autouse=True)
+def isolated_ledger(tmp_path, monkeypatch):
+    """Point every test at a throwaway ledger.
+
+    /check appends to the ledger, so without this the test suite would write
+    real records into the developer's data/ledger.jsonl on every run.
+    """
+    monkeypatch.setenv("VERIS_LEDGER_PATH", str(tmp_path / "ledger.jsonl"))

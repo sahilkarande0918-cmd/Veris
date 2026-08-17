@@ -16,7 +16,7 @@ decides, and never changes, the verdict.
 | 0 | Monorepo, shared schema, health route | done |
 | 1 | Verdict engine: deterministic checks | done |
 | 2 | Explanation layer (Groq, explains only) | done |
-| 3 | Tamper-evident evidence ledger | todo |
+| 3 | Tamper-evident evidence ledger | done |
 | 4 | Android app (share-sheet intake, evidence panel) | todo |
 | 5 | Point-of-attack features (APK, call screening) | todo |
 | 6 | India grounding + adversarial demo | todo |
@@ -160,6 +160,74 @@ optional.** With no keys at all the engine still returns a verdict from local
 blocklists and offline checks -- that is deliberate, so a live demo never
 depends on a network call. Set `VERIS_OFFLINE=1` to block outbound calls
 entirely.
+
+## The evidence ledger
+
+Every check is appended to `data/ledger.jsonl` as one line carrying the
+SHA-256 hash of the line before it. Edit any byte of any earlier record and
+every hash after it stops matching.
+
+See it catch a forgery:
+
+```bash
+python scripts/demo_ledger.py
+```
+
+It records three incidents, exports a complaint packet, edits a verdict in the
+log, and shows the chain naming the broken record:
+
+```
+broken at : record #2
+reason    : contents were altered: stored hash c3eaa2f665a3a232...
+            but the data now hashes to 29f98762e4c63b21...
+```
+
+Recompute the tampered record's own hash to cover your tracks and the break
+just moves downstream, because record #3 still points at the original:
+
+```
+broken at : record #3
+reason    : prev_hash does not match the previous record's hash
+```
+
+To hide an edit you must rewrite every record after it — and then the signed
+chain head no longer matches.
+
+| Endpoint | What |
+|---|---|
+| `GET /ledger/events` | every recorded event, oldest first |
+| `GET /ledger/verify` | walk the chain, report the first break and why |
+| `POST /ledger/report` | record complaint details, return an NCRP-aligned packet |
+
+### Why a hash chain and not a blockchain
+
+A blockchain solves distributed consensus among mutually distrusting parties.
+That is not this problem. This problem is detecting after-the-fact edits to
+one evidence log, which a hash chain solves completely — with no network, no
+miners, and no tokens, which is also why it still works on a phone in a
+village with no signal.
+
+What a chain alone does not give you is proof of *when*. The chain head is
+signed (HMAC-SHA256, `VERIS_LEDGER_KEY`) so a full rewrite needs the key, and
+`timestamp_anchoring` in the packet states plainly that wall-clock time is
+asserted by the device rather than by a trusted third party. RFC 3161
+anchoring is the upgrade path and is **not** implemented — the packet says so
+rather than implying a timestamp we do not have.
+
+### The complaint packet
+
+`POST /ledger/report` returns the fields NCRP's financial-fraud flow asks for
+(incident time, amount, payment mode, suspect UPI/account/bank, UTR, suspect
+URLs and phone, screenshot hashes) alongside the automated findings, the chain
+verification status, the data-source attributions, and where to file.
+
+Veris **submits nothing anywhere**. There is no public NCRP API, and filing on
+someone's behalf would be wrong even if there were. The packet goes to the
+user; the user decides.
+
+If the chain is broken, the packet says so — `chain_verified: false` with the
+offending sequence number. A packet that quietly omitted tampering would be
+evidence laundering.
 
 ## Attribution
 

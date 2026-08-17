@@ -13,6 +13,8 @@ from . import ENGINE_VERSION
 from .checks import host_of, registered_domain, run_offline_checks
 from .enrich import enrich, is_offline
 from .explain import explain
+from .ledger import append, read_all, verify
+from .packet import ComplaintDetails, build_packet
 from .rules import decide
 from .subject import classify
 
@@ -25,6 +27,7 @@ class CheckRequest(BaseModel):
     input: str
     explain: bool = True
     language: str = "mr"  # regional output: "mr" (Marathi) or "hi" (Hindi)
+    record: bool = True  # append this check to the tamper-evident ledger
 
 
 @app.get("/health")
@@ -71,4 +74,34 @@ def check(request: CheckRequest) -> VerdictResult:
     # result and can only attach prose to it.
     if request.explain:
         result.explanation = explain(result, request.language)
+
+    if request.record:
+        append("check", result.model_dump())
     return result
+
+
+@app.get("/ledger/events")
+def ledger_events() -> dict:
+    """Every recorded event, oldest first. Backs the app's History screen."""
+    return {"events": read_all()}
+
+
+@app.get("/ledger/verify")
+def ledger_verify() -> dict:
+    """Walk the hash chain and report the first break, with the reason.
+
+    This is the endpoint that makes the evidence trail worth anything: anyone
+    can call it and see whether the log has been edited since it was written.
+    """
+    return verify()
+
+
+@app.post("/ledger/report")
+def ledger_report(complaint: ComplaintDetails) -> dict:
+    """Record the user's complaint details and return an NCRP-aligned packet.
+
+    Filing is the user's decision: this returns the packet to them and submits
+    nothing anywhere.
+    """
+    append("report", complaint.model_dump())
+    return build_packet(complaint)
