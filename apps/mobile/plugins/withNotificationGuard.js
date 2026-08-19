@@ -114,6 +114,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Intent
 import android.os.Build
+import android.util.Log
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import androidx.core.app.NotificationCompat
@@ -131,6 +132,7 @@ class VerisNotificationGuardService : NotificationListenerService() {
     private data class Finding(val label: String, val weight: Int, val source: String)
 
     companion object {
+        private const val TAG = "VerisGuard"
         private const val CHANNEL_ID = "veris_scam_warnings"
         private const val MAX_TEXT = 1200
 
@@ -162,11 +164,16 @@ class VerisNotificationGuardService : NotificationListenerService() {
         return loaded
     }
 
+    override fun onListenerConnected() {
+        Log.i(TAG, "connected; rules keys=" + rules().length())
+    }
+
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         try {
             screen(sbn)
         } catch (e: Exception) {
             // Never let a parsing bug take down the notification pipeline.
+            Log.e(TAG, "screen failed", e)
         }
     }
 
@@ -183,6 +190,7 @@ class VerisNotificationGuardService : NotificationListenerService() {
             extras.getCharSequence("android.bigText")?.toString(),
         )
         val text = parts.joinToString(" ").take(MAX_TEXT)
+        Log.d(TAG, "from=" + pkg + " len=" + text.length)
         if (text.isBlank()) return
 
         val key = text.hashCode()
@@ -192,12 +200,14 @@ class VerisNotificationGuardService : NotificationListenerService() {
         recentlySeen[key] = now
 
         val findings = judge(text)
+        Log.d(TAG, "findings=" + findings.size + " " + findings.joinToString { it.label })
         if (findings.isEmpty()) return
 
         val score = minOf(100, findings.sumOf { it.weight })
         val thresholds = rules().optJSONObject("thresholds")
         val scamAt = thresholds?.optInt("likely_scam", 60) ?: 60
         val suspectAt = thresholds?.optInt("suspicious", 30) ?: 30
+        Log.d(TAG, "score=" + score + " scamAt=" + scamAt + " suspectAt=" + suspectAt)
         if (score < suspectAt) return
 
         warn(
@@ -369,6 +379,7 @@ class VerisNotificationGuardService : NotificationListenerService() {
             .build()
 
         manager.notify(text.hashCode(), notification)
+        Log.i(TAG, "warning posted: " + title)
     }
 }
 `
