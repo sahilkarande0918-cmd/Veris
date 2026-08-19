@@ -123,6 +123,17 @@ export default function Report() {
           <Pressable style={styles.secondary} onPress={() => Linking.openURL("tel:1930")}>
             <Text style={styles.secondaryText}>Call 1930 helpline</Text>
           </Pressable>
+          <Pressable
+            style={styles.secondary}
+            onPress={() => Linking.openURL("https://sancharsaathi.gov.in/")}
+          >
+            <Text style={styles.secondaryText}>Report the number on Sanchar Saathi</Text>
+          </Pressable>
+          <Text style={styles.rails}>
+            These open the official portals. Veris never files a report for you
+            and never contacts an officer on your behalf — none of these have a
+            public API, and the decision to report is yours.
+          </Text>
         </View>
       )}
     </ScrollView>
@@ -173,4 +184,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   secondaryText: { color: colors.accent, fontWeight: "600", fontSize: 14 },
+  rails: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 2 },
 })

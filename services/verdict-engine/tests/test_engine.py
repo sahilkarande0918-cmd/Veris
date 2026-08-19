@@ -99,3 +99,51 @@ def test_score_is_capped_at_100():
     signals = [Signal(id=f"s{i}", source="x", value="y", weight=70) for i in range(3)]
     _, score, _ = decide(signals)
     assert score == 100
+
+
+# --- Phase 6: adversarial URL structure and India grounding -----------------
+
+
+def test_userinfo_deception_is_caught():
+    """`hdfcbank.com@evil.top` is served by evil.top. Naive detectors miss it."""
+    from app.checks import check_userinfo_deception
+
+    signals = check_userinfo_deception("http://hdfcbank.com@secure-verify.top/login")
+    assert [s.id for s in signals] == ["userinfo_deception"]
+    assert signals[0].weight >= 60
+
+
+def test_userinfo_without_a_brand_is_still_flagged_but_lower():
+    from app.checks import check_userinfo_deception
+
+    signals = check_userinfo_deception("http://someone@random-host.xyz/")
+    assert [s.id for s in signals] == ["userinfo_present"]
+
+
+def test_ordinary_url_has_no_userinfo_signal():
+    from app.checks import check_userinfo_deception
+
+    assert check_userinfo_deception("https://www.hdfcbank.com/") == []
+
+
+def test_raw_ip_host_is_flagged():
+    from app.checks import check_ip_host
+
+    assert [s.id for s in check_ip_host("192.168.1.50")] == ["ip_address_host"]
+    assert check_ip_host("hdfcbank.com") == []
+
+
+def test_credit_offer_from_an_unregulated_domain_is_flagged():
+    from app.checks import check_unregulated_lender
+
+    signals = check_unregulated_lender(
+        "instant-loan-approval-24x7.icu", "http://instant-loan-approval-24x7.icu/apply"
+    )
+    assert [s.id for s in signals] == ["unregulated_lender"]
+
+
+def test_a_real_regulated_lender_is_not_flagged():
+    """Bajaj Finserv is an RBI-regulated NBFC: a loan page there is fine."""
+    from app.checks import check_unregulated_lender
+
+    assert check_unregulated_lender("bajajfinserv.in", "https://bajajfinserv.in/personal-loan") == []

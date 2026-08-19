@@ -2,27 +2,122 @@
   "_note": "Phase 1 acceptance set. Every one of these must produce the expected verdict with the NETWORK OFF -- offline signals only. If a case here needs a network call to pass, the case is wrong, not the engine.",
   "_expectations": "bad cases assert an exact verdict; a typosquat with no blocklist hit is honestly 'suspicious', not 'likely_scam' -- claiming certainty we cannot evidence offline would break the rule in CLAUDE.md.",
   "bad": [
-    { "input": "http://sbi-kyc-verify-online.top/login", "expect": "likely_scam", "why": "PhishTank blocklist hit" },
-    { "input": "http://hdfcbank-secure-login.top/netbanking", "expect": "likely_scam", "why": "PhishTank blocklist hit" },
-    { "input": "https://icici-netbanking-update.xyz/verify", "expect": "likely_scam", "why": "PhishTank blocklist hit" },
-    { "input": "http://loan-instant-approval.icu/app/InstantLoan.apk", "expect": "likely_scam", "why": "URLhaus malware distribution" },
-    { "input": "https://hdfcbank.com.secure-verify.top/login", "expect": "likely_scam", "why": "OpenPhish hit + real brand used as a subdomain of an attacker domain" },
-    { "input": "http://xn--hdfcbnk-6fg.com/netbanking", "expect": "likely_scam", "why": "OpenPhish hit + Cyrillic homoglyph of hdfcbank.com" },
-    { "input": "https://xn--icicibnk-66g.com/login", "expect": "likely_scam", "why": "homoglyph of icicibank.com, on NO blocklist -- proves the offline homoglyph check stands alone" },
-    { "input": "http://hdfcbnak.com/login", "expect": "suspicious", "why": "typosquat, Levenshtein 2 from hdfcbank.com, on no blocklist" },
-    { "input": "kycupdate2026@ybl", "expect": "likely_scam", "why": "UPI VPA on the locally reported scam list" },
-    { "input": "instantloan.approve@paytm", "expect": "likely_scam", "why": "UPI VPA on the locally reported scam list" }
+    {
+      "input": "http://sbi-kyc-verify-online.top/login",
+      "expect": "likely_scam",
+      "why": "PhishTank blocklist hit"
+    },
+    {
+      "input": "http://hdfcbank-secure-login.top/netbanking",
+      "expect": "likely_scam",
+      "why": "PhishTank blocklist hit"
+    },
+    {
+      "input": "https://icici-netbanking-update.xyz/verify",
+      "expect": "likely_scam",
+      "why": "PhishTank blocklist hit"
+    },
+    {
+      "input": "http://loan-instant-approval.icu/app/InstantLoan.apk",
+      "expect": "likely_scam",
+      "why": "URLhaus malware distribution"
+    },
+    {
+      "input": "https://hdfcbank.com.secure-verify.top/login",
+      "expect": "likely_scam",
+      "why": "OpenPhish hit + real brand used as a subdomain of an attacker domain"
+    },
+    {
+      "input": "http://xn--hdfcbnk-6fg.com/netbanking",
+      "expect": "likely_scam",
+      "why": "OpenPhish hit + Cyrillic homoglyph of hdfcbank.com"
+    },
+    {
+      "input": "https://xn--icicibnk-66g.com/login",
+      "expect": "likely_scam",
+      "why": "homoglyph of icicibank.com, on NO blocklist -- proves the offline homoglyph check stands alone"
+    },
+    {
+      "input": "http://hdfcbnak.com/login",
+      "expect": "suspicious",
+      "why": "typosquat, Levenshtein 2 from hdfcbank.com, on no blocklist"
+    },
+    {
+      "input": "kycupdate2026@ybl",
+      "expect": "likely_scam",
+      "why": "UPI VPA on the locally reported scam list"
+    },
+    {
+      "input": "instantloan.approve@paytm",
+      "expect": "likely_scam",
+      "why": "UPI VPA on the locally reported scam list"
+    },
+    {
+      "input": "http://hdfcbank.com@secure-verify.top/login",
+      "expect": "likely_scam",
+      "why": "userinfo deception: everything before '@' is a username, the page is served by secure-verify.top"
+    },
+    {
+      "input": "http://192.168.1.50/sbi/netbanking",
+      "expect": "suspicious",
+      "why": "bank login served from a raw IP address"
+    },
+    {
+      "input": "http://sbi.co.in.login-verify.icu/",
+      "expect": "likely_scam",
+      "why": "real brand domain used as a subdomain label of an attacker domain"
+    }
   ],
   "good": [
-    { "input": "https://www.hdfcbank.com/", "expect": "safe", "why": "allowlisted brand domain" },
-    { "input": "https://onlinesbi.sbi/", "expect": "safe", "why": "allowlisted brand domain" },
-    { "input": "https://cybercrime.gov.in/", "expect": "safe", "why": "allowlisted government domain" },
-    { "input": "https://www.icicibank.com/personal-banking", "expect": "safe", "why": "allowlisted brand domain with a path" },
-    { "input": "https://rbi.org.in/", "expect": "safe", "why": "allowlisted government domain" },
-    { "input": "https://uidai.gov.in/", "expect": "safe", "why": "allowlisted government domain" },
-    { "input": "https://paytm.com/", "expect": "safe", "why": "allowlisted wallet domain" },
-    { "input": "https://irctc.co.in/", "expect": "safe", "why": "allowlisted government domain, multi-part suffix" },
-    { "input": "ramesh.kumar@okhdfcbank", "expect": "safe", "why": "well-formed UPI VPA, not on the reported list" },
-    { "input": "merchant.store@ybl", "expect": "safe", "why": "well-formed UPI VPA, not on the reported list" }
+    {
+      "input": "https://www.hdfcbank.com/",
+      "expect": "safe",
+      "why": "allowlisted brand domain"
+    },
+    {
+      "input": "https://onlinesbi.sbi/",
+      "expect": "safe",
+      "why": "allowlisted brand domain"
+    },
+    {
+      "input": "https://cybercrime.gov.in/",
+      "expect": "safe",
+      "why": "allowlisted government domain"
+    },
+    {
+      "input": "https://www.icicibank.com/personal-banking",
+      "expect": "safe",
+      "why": "allowlisted brand domain with a path"
+    },
+    {
+      "input": "https://rbi.org.in/",
+      "expect": "safe",
+      "why": "allowlisted government domain"
+    },
+    {
+      "input": "https://uidai.gov.in/",
+      "expect": "safe",
+      "why": "allowlisted government domain"
+    },
+    {
+      "input": "https://paytm.com/",
+      "expect": "safe",
+      "why": "allowlisted wallet domain"
+    },
+    {
+      "input": "https://irctc.co.in/",
+      "expect": "safe",
+      "why": "allowlisted government domain, multi-part suffix"
+    },
+    {
+      "input": "ramesh.kumar@okhdfcbank",
+      "expect": "safe",
+      "why": "well-formed UPI VPA, not on the reported list"
+    },
+    {
+      "input": "merchant.store@ybl",
+      "expect": "safe",
+      "why": "well-formed UPI VPA, not on the reported list"
+    }
   ]
 }

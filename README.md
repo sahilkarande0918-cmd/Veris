@@ -19,7 +19,7 @@ decides, and never changes, the verdict.
 | 3 | Tamper-evident evidence ledger | done |
 | 4 | Android app (share-sheet intake, evidence panel) | done |
 | 5 | Point-of-attack features (APK, call screening) | todo |
-| 6 | India grounding + adversarial demo | todo |
+| 6 | India grounding + adversarial demo | done |
 | 7 | Demo hardening | todo |
 
 ## Layout
@@ -106,6 +106,9 @@ of the signal weights, and every signal names the source it came from.
 | Typosquat | Levenshtein <= 2 vs curated Indian brand list | 45 |
 | Reported UPI VPA | local reported list | 70 |
 | Malformed UPI VPA | NPCI VPA format rules | 30 |
+| Userinfo deception (`brand.com@evil.top`) | RFC 3986 URL parsing | 60 |
+| Raw IP as host | host is a literal IP address | 45 |
+| Credit offer from an unregulated domain | RBI-regulated lender seed list | 35 |
 | Verified brand domain | curated Indian brand list | allowlist |
 
 Scores are summed and capped at 100: `>= 60` is `likely_scam`, `>= 30` is
@@ -265,6 +268,52 @@ nothing until you run:
 ```bash
 npx expo prebuild --clean -p android
 ```
+
+## The adversarial demo
+
+```bash
+python scripts/demo_adversarial.py
+```
+
+Runs the same nine URLs past a naive detector -- "does the URL contain a known
+bank domain?", which is genuinely what a weekend project ships -- and past
+Veris:
+
+```
+  naive detector : 5/9 correct
+  Veris          : 9/9 correct
+```
+
+The naive rule fails in both directions. It waves through every impersonation
+that merely contains the brand string:
+
+| Attack | Naive | Veris |
+|---|---|---|
+| `hdfcbank.com.secure-verify.top` | safe | likely_scam -- served by `secure-verify.top` (Public Suffix List) |
+| `hdfcbank.com@secure-verify.top` | safe | likely_scam -- text before `@` is a username, not a host |
+| `sbi.co.in.login-verify.icu` | safe | likely_scam -- brand as a subdomain label |
+| `xn--icicibnk-66g.com` | scam | likely_scam -- Cyrillic skeleton match (UTS #39) |
+
+...and it calls a **real** bank a scam for not being on its list
+(`bankofmaharashtra.in`). Veris reports that nothing flagged it -- absence of
+evidence stated as absence of evidence, not as safety.
+
+## India grounding
+
+| Source | How it is used | Status |
+|---|---|---|
+| Indian bank / UPI / govt brand domains | allowlist + homoglyph and typosquat targets | integrated (`fixtures/brands_in.json`) |
+| RBI-regulated lenders | flags instant-credit offers from domains tied to no regulated lender | **seed list**, integrated (`fixtures/rbi_regulated_lenders.json`) |
+| NCRP / cybercrime.gov.in | complaint packet fields + deep link | align + deep-link, **no public API** |
+| 1930 helpline | `tel:` deep link, packet written to be read aloud | align, **no API** |
+| Sanchar Saathi / Chakshu | deep link from the Report screen | **no public API** |
+| Suspect Registry / DoT FRI | named as a future MoU integration only | **bank-only backend, not integrated** |
+
+Two honesty rules hold here. The RBI list is a hand-compiled **seed**, not a
+copy of RBI's directory, so a domain missing from it scores *suspicious* with
+the words "not on our list -- verify on the RBI directory", never "illegitimate".
+And Veris opens these portals for the user; it never files anything and never
+contacts an officer.
 
 ## The evidence ledger
 

@@ -1,0 +1,26 @@
+{
+  "_note": "Domains of lenders regulated by the RBI (banks and NBFCs) and their digital lending apps. Used to spot the loan-app scam pattern: an app or site promising instant credit that belongs to no regulated lender.",
+  "_provenance": "SEED LIST, compiled by hand from the public websites of well-known RBI-regulated entities. It is NOT a copy of the RBI Digital Lending Apps directory and is deliberately incomplete.",
+  "_before_real_use": "Replace with the current DLA list RBI publishes for its regulated entities (rbi.org.in). Because this list is partial, a domain missing from it is reported as 'not verified against our list' and scored as suspicious -- never as proof that a lender is illegitimate.",
+  "_updated": "2026-08-20",
+  "lenders": [
+    { "name": "HDFC Bank", "domains": ["hdfcbank.com"] },
+    { "name": "ICICI Bank", "domains": ["icicibank.com"] },
+    { "name": "State Bank of India", "domains": ["sbi.co.in", "onlinesbi.sbi", "bank.sbi"] },
+    { "name": "Axis Bank", "domains": ["axisbank.com"] },
+    { "name": "Kotak Mahindra Bank", "domains": ["kotak.com"] },
+    { "name": "Bajaj Finance", "domains": ["bajajfinserv.in"] },
+    { "name": "Tata Capital", "domains": ["tatacapital.com"] },
+    { "name": "Aditya Birla Finance", "domains": ["adityabirlacapital.com"] },
+    { "name": "L&T Finance", "domains": ["ltfs.com"] },
+    { "name": "Mahindra Finance", "domains": ["mahindrafinance.com"] },
+    { "name": "Muthoot Finance", "domains": ["muthootfinance.com"] },
+    { "name": "Shriram Finance", "domains": ["shriramfinance.in"] },
+    { "name": "IDFC FIRST Bank", "domains": ["idfcfirstbank.com"] },
+    { "name": "Federal Bank", "domains": ["federalbank.co.in"] }
+  ],
+  "credit_keywords": [
+    "loan", "instantloan", "quickloan", "paydayloan", "creditline",
+    "instant-cash", "quickcash", "easyloan", "loanapp", "emi-loan", "rupee-loan"
+  ]
+}

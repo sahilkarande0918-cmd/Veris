@@ -5,6 +5,7 @@ carrying their own citation. No network, no model, no guessing. These are the
 checks that must keep working when the venue wifi dies on stage.
 """
 
+import ipaddress
 import json
 import re
 from functools import lru_cache
@@ -61,6 +62,14 @@ def _blocklist_index() -> dict[str, str]:
             index.setdefault(_normalise_url(entry), source)
             index.setdefault(host_of(entry), source)
     return index
+
+
+@lru_cache(maxsize=1)
+def _regulated_lenders() -> tuple[dict[str, str], tuple[str, ...]]:
+    """(domain -> lender name, credit keywords) from the RBI seed list."""
+    data = json.loads((FIXTURES / "rbi_regulated_lenders.json").read_text(encoding="utf-8"))
+    index = {d: l["name"] for l in data["lenders"] for d in l["domains"]}
+    return index, tuple(data["credit_keywords"])
 
 
 @lru_cache(maxsize=1)
@@ -228,10 +237,96 @@ def check_brand_as_subdomain(host: str) -> list[Signal]:
                     value=(
                         f"looks like {brand} but is actually served by {domain!r}"
                     ),
-                    weight=55,
+                    weight=60,
                 )
             ]
     return []
+
+
+def check_userinfo_deception(url: str) -> list[Signal]:
+    """A brand hidden in the URL's userinfo field, before the '@'.
+
+    `http://hdfcbank.com@secure-verify.top/login` is served entirely by
+    secure-verify.top -- everything before the '@' is a username, not a host.
+    It reads as the bank to a human and to any substring check. Browsers
+    deprecated userinfo in http(s) URLs precisely because of this attack, so
+    its presence at all is a red flag.
+    """
+    parsed = urlsplit(url if "://" in url else f"http://{url}")
+    userinfo = parsed.username or ""
+    if not userinfo:
+        return []
+
+    for brand_domain, brand in _brand_index().items():
+        label = brand_domain.split(".")[0]
+        if brand_domain in userinfo.lower() or label in userinfo.lower():
+            return [
+                Signal(
+                    id="userinfo_deception",
+                    source="URL userinfo field (RFC 3986 parsing)",
+                    value=(
+                        f"reads as {brand} but everything before '@' is a username; "
+                        f"the page is served by {parsed.hostname!r}"
+                    ),
+                    weight=60,
+                )
+            ]
+    return [
+        Signal(
+            id="userinfo_present",
+            source="URL userinfo field (RFC 3986 parsing)",
+            value=f"URL hides its real host {parsed.hostname!r} behind a '@'",
+            weight=35,
+        )
+    ]
+
+
+def check_ip_host(host: str) -> list[Signal]:
+    """A bare IP address where a bank domain should be."""
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        return []
+    return [
+        Signal(
+            id="ip_address_host",
+            source="Host is a literal IP address, not a domain name",
+            value=f"served from the raw address {host}, which no bank or government site does",
+            weight=45,
+        )
+    ]
+
+
+def check_unregulated_lender(host: str, url: str) -> list[Signal]:
+    """Instant-credit branding on a domain belonging to no regulated lender.
+
+    India's loan-app fraud pattern: an app promises instant cash, harvests
+    contacts, then extorts. Lending to the public is RBI-regulated, so a
+    credit offer from a domain tied to no regulated entity is a real signal.
+
+    Scored as suspicious, never conclusive: our lender list is a partial seed,
+    so a miss means "not on our list -- verify with RBI", not "illegitimate".
+    """
+    lenders, keywords = _regulated_lenders()
+    domain = registered_domain(host)
+    if domain in lenders or domain in _brand_index():
+        return []
+
+    haystack = f"{host} {url}".lower()
+    hit = next((k for k in keywords if k in haystack), None)
+    if not hit:
+        return []
+    return [
+        Signal(
+            id="unregulated_lender",
+            source="Veris seed list of RBI-regulated lenders (fixtures/rbi_regulated_lenders.json)",
+            value=(
+                f"offers credit ({hit!r}) but {domain!r} is not on our list of "
+                "RBI-regulated lenders -- verify on the RBI directory"
+            ),
+            weight=35,
+        )
+    ]
 
 
 def check_upi(vpa: str) -> list[Signal]:
@@ -274,6 +369,9 @@ def run_offline_checks(subject_type: str, value: str) -> list[Signal]:
         return []
 
     signals = check_blocklists(value)
+    signals += check_userinfo_deception(value)
+    signals += check_ip_host(host)
+    signals += check_unregulated_lender(host, value)
 
     allowlisted = check_brand_allowlist(host)
     if allowlisted:
