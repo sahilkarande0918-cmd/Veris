@@ -24,6 +24,20 @@ const { withAndroidManifest, withDangerousMod, AndroidConfig } = require("expo/c
 const fs = require("fs")
 const path = require("path")
 
+/** Kotlin reserves some words, and Indian packages start with `in`. Escape them. */
+const KOTLIN_KEYWORDS = new Set([
+  "as", "break", "class", "continue", "do", "else", "false", "for", "fun", "if",
+  "in", "interface", "is", "null", "object", "package", "return", "super", "this",
+  "throw", "true", "try", "typealias", "typeof", "val", "var", "when", "while",
+])
+
+function kotlinPackage(pkg) {
+  return pkg
+    .split(".")
+    .map((part) => (KOTLIN_KEYWORDS.has(part) ? "`" + part + "`" : part))
+    .join(".")
+}
+
 const SERVICE_CLASS = ".VerisNotificationGuardService"
 
 function withRulesAsset(config) {
@@ -93,7 +107,7 @@ function withGuardManifest(config) {
 }
 
 function kotlin(pkg) {
-  return `package ${pkg}
+  return `package ${kotlinPackage(pkg)}
 
 import android.app.NotificationChannel
 import android.app.NotificationManager

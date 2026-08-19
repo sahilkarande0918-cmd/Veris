@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import {
   ActivityIndicator,
   Pressable,
@@ -22,6 +22,10 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null)
   const [engine, setEngine] = useState<string | null>(null)
   const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntentContext()
+  // The share effect can fire more than once for one share. Without this the
+  // same check lands in the tamper-evident ledger twice, which makes the
+  // evidence trail look sloppy to anyone reading it.
+  const lastHandled = useRef<string | null>(null)
 
   useEffect(() => {
     health()
@@ -34,7 +38,8 @@ export default function Home() {
   useEffect(() => {
     if (!hasShareIntent) return
     const shared = shareIntent.webUrl ?? shareIntent.text
-    if (shared) {
+    if (shared && shared !== lastHandled.current) {
+      lastHandled.current = shared
       setInput(shared)
       void run(shared)
     }

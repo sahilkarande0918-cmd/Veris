@@ -7,7 +7,10 @@ import {
   requestCallScreeningRole,
   type RoleOutcome,
 } from "../lib/callscreening"
-import { openNotificationAccessSettings } from "../lib/notificationguard"
+import {
+  openNotificationAccessSettings,
+  requestPostNotifications,
+} from "../lib/notificationguard"
 import { colors } from "../lib/theme"
 
 const OUTCOME_TEXT: Record<RoleOutcome, string> = {
@@ -90,11 +93,16 @@ export default function Protect() {
         <Pressable
           style={({ pressed }) => [styles.primary, pressed && { opacity: 0.8 }]}
           onPress={async () => {
+            // Two separate grants. Without the first, Veris reads messages fine
+            // and its warning is silently dropped -- which looks like a bug.
+            const canPost = await requestPostNotifications()
             const opened = await openNotificationAccessSettings()
             setStatus(
-              opened
-                ? "Find Veris in the list and turn it on. Then send yourself a test message."
-                : "Could not open the settings screen. Look for Notification access in Settings.",
+              !canPost
+                ? "Allow notifications for Veris first, otherwise its warnings cannot appear. Settings -> Apps -> Veris -> Notifications."
+                : opened
+                  ? "Find Veris in the list and turn it on. Then send yourself a test message."
+                  : "Could not open the settings screen. Look for Notification access in Settings.",
             )
           }}
         >

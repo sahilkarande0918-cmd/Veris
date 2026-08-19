@@ -468,6 +468,13 @@ UPI ids and numbers, blocked hosts, weights, thresholds) and are bundled by
 `plugins/withNotificationGuard.js`. Editing that one file changes what both
 the guard and the call screener catch.
 
+**What it cannot see.** The guard reads what is *in the notification*. If the
+user has message previews turned off, or the messaging app truncates a long
+message, Veris only sees what was shown. It also cannot see a message that
+arrives while notifications for that app are silenced. The share sheet still
+handles those in full -- this is an early-warning layer, not a replacement for
+checking something properly.
+
 Try it after installing: send yourself an SMS reading
 `Your SBI KYC has expired, account blocked within 2 hours. Pay kycupdate2026@ybl`.
 

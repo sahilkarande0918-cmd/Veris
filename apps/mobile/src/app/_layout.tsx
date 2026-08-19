@@ -1,4 +1,4 @@
-import { Stack } from "expo-router"
+import { router, Stack } from "expo-router"
 import { StatusBar } from "expo-status-bar"
 import { ShareIntentProvider } from "expo-share-intent"
 
@@ -13,7 +13,14 @@ import { colors } from "../lib/theme"
  */
 export default function RootLayout() {
   return (
-    <ShareIntentProvider>
+    <ShareIntentProvider
+      options={{
+        // debug logs go to Metro, which is how we verify intake without a UI.
+        debug: true,
+        resetOnBackground: true,
+        onResetShareIntent: () => router.replace({ pathname: "/" }),
+      }}
+    >
       <StatusBar style="light" />
       <Stack
         screenOptions={{

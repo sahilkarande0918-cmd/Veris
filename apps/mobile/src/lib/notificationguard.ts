@@ -6,7 +6,7 @@
  * the user there and explain honestly why it is asking.
  */
 
-import { NativeModules, Platform } from "react-native"
+import { PermissionsAndroid, Platform } from "react-native"
 import * as IntentLauncher from "expo-intent-launcher"
 
 const NOTIFICATION_LISTENER_SETTINGS = "android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"
@@ -30,6 +30,26 @@ export async function openNotificationAccessSettings(): Promise<boolean> {
 }
 
 /**
+ * Ask for permission to POST our own warnings.
+ *
+ * Android 13+ blocks an app's notifications until the user allows them, so
+ * without this the guard reads messages correctly and its warning is silently
+ * dropped -- which looks exactly like the feature not working.
+ */
+export async function requestPostNotifications(): Promise<boolean> {
+  if (Platform.OS !== "android") return false
+  if (Number(Platform.Version) < 33) return true // granted at install below API 33
+  try {
+    const result = await PermissionsAndroid.request(
+      "android.permission.POST_NOTIFICATIONS" as never,
+    )
+    return result === PermissionsAndroid.RESULTS.GRANTED
+  } catch {
+    return false
+  }
+}
+
+/**
  * Whether the guard is currently allowed to see notifications.
  *
  * ponytail: Android exposes this only through Settings.Secure, which needs
@@ -38,6 +58,5 @@ export async function openNotificationAccessSettings(): Promise<boolean> {
  * we ever need to react to the state changing on its own.
  */
 export function canReadNotifications(): "unknown" {
-  void NativeModules
   return "unknown"
 }
