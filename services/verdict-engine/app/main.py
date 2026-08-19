@@ -5,11 +5,15 @@ this file -- the explanation layer arrives in Phase 2 and will only ever be
 handed the evidence produced here.
 """
 
-from fastapi import FastAPI, HTTPException
+import tempfile
+from pathlib import Path
+
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from pydantic import BaseModel
-from verdict import VerdictResult
+from verdict import Subject, VerdictResult
 
 from . import ENGINE_VERSION
+from .apk import analyze as analyze_apk
 from .checks import host_of, registered_domain, run_offline_checks
 from .enrich import enrich, is_offline
 from .explain import explain
@@ -105,3 +109,32 @@ def ledger_report(complaint: ComplaintDetails) -> dict:
     """
     append("report", complaint.model_dump())
     return build_packet(complaint)
+
+
+@app.post("/check/apk", response_model=VerdictResult)
+async def check_apk(file: UploadFile = File(...), language: str = "mr") -> VerdictResult:
+    """Static analysis of an uploaded APK. The app is never installed or run.
+
+    Permissions are facts read from the manifest, so the same deterministic
+    rule engine decides here too -- there is no model in this path either.
+    """
+    if not file.filename or not file.filename.lower().endswith(".apk"):
+        raise HTTPException(status_code=422, detail="expected a .apk file")
+
+    with tempfile.TemporaryDirectory() as workdir:
+        target = Path(workdir) / "upload.apk"
+        target.write_bytes(await file.read())
+        signals, meta = analyze_apk(target)
+
+    verdict, score, rules_fired = decide(signals)
+    result = VerdictResult(
+        subject=Subject(type="apk_hash", value=meta["sha256"]),
+        verdict=verdict,
+        score=score,
+        signals=signals,
+        rules_fired=rules_fired + [f"apk package: {meta.get('package')}"],
+        engine_version=ENGINE_VERSION,
+    )
+    result.explanation = explain(result, language)
+    append("check", result.model_dump())
+    return result

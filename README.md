@@ -18,7 +18,7 @@ decides, and never changes, the verdict.
 | 2 | Explanation layer (Groq, explains only) | done |
 | 3 | Tamper-evident evidence ledger | done |
 | 4 | Android app (share-sheet intake, evidence panel) | done |
-| 5 | Point-of-attack features (APK, call screening) | todo |
+| 5 | Point-of-attack: APK static analysis | done (1 of 3, others declined) |
 | 6 | India grounding + adversarial demo | done |
 | 7 | Demo hardening | todo |
 
@@ -268,6 +268,57 @@ nothing until you run:
 ```bash
 npx expo prebuild --clean -p android
 ```
+
+## APK static analysis
+
+```bash
+python scripts/demo_apk.py
+```
+
+Reads the permissions declared in an APK's manifest **without installing or
+running the app** -- which is precisely what a victim cannot do before tapping
+Install.
+
+```
+  a fake instant-loan app
+  package : com.instant.rupee.loan  v3.1.4
+  verdict : LIKELY_SCAM  (score 100/100)
+     +35  READ_CONTACTS -- can copy your whole contact list
+     +35  READ_SMS -- can read your SMS, including bank OTPs
+     +45  requests contacts AND SMS together -- the combination used to
+          harvest a contact list and intercept bank OTPs
+```
+
+The fixture is a **real APK**, built with `aapt2` from the Android SDK, not a
+mocked JSON blob. The pairing is the point: harvest the contact list,
+intercept the bank OTP, then threaten to message everyone the victim knows.
+That is the Indian fake-loan-app playbook, and it is visible in the manifest
+before the app ever runs.
+
+Veris analyses **itself** in the same demo and does not score zero -- its debug
+build carries `SYSTEM_ALERT_WINDOW` from React Native's dev overlay. A tool
+that exempted itself from its own rules would not be worth trusting.
+
+Upload one to the engine:
+
+```bash
+curl -F "file=@fixtures/apk/fake_loan_app.apk" http://127.0.0.1:8000/check/apk
+```
+
+MobSF is wired in as **optional enrichment** (`MOBSF_URL` + `MOBSF_API_KEY`)
+and is never required. A 2 GB container must not stand between a victim and a
+verdict, so the offline permission analysis produces the verdict on its own.
+
+### Point-of-attack features NOT built, and why
+
+Stated plainly rather than left as half-working stubs:
+
+| Feature | Status |
+|---|---|
+| **Call screening** (`CallScreeningService` + `RoleManager`) | **not built.** Needs a native Kotlin module and the user to hand Veris the system call-screening role. Achievable, but it is a second native surface for one demo moment. |
+| **On-device model** (Gemma via MediaPipe / LiteRT) | **not built.** The deterministic checks already run offline, so an on-device model would add a ~1 GB download to explain evidence the template layer already explains in Marathi and Hindi. |
+| **Accessibility-service overlay warning** | **not built, and not recommended.** Play policy treats accessibility-service use for non-accessibility purposes as a violation. Sideload-only at best. |
+| **SMS screening** | **deliberately impossible.** `READ_SMS` / `READ_CALL_LOG` are banned by Play policy. The compliant route is the SMS Retriever / User Consent API, and share-sheet intake already covers the demo. |
 
 ## The adversarial demo
 
