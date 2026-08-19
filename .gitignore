@@ -25,3 +25,6 @@ data/
 apps/mobile/android/
 apps/mobile/ios/
 apps/mobile/.expo/
+
+# signing secrets: keystore + passwords. NEVER commit. Back them up separately.
+apps/mobile/credentials/

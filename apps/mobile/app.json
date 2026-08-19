@@ -53,7 +53,8 @@
         }
       ],
       "./plugins/withCallScreening",
-      "./plugins/withNotificationGuard"
+      "./plugins/withNotificationGuard",
+      "./plugins/withReleaseSigning"
     ],
     "experiments": {
       "typedRoutes": true,

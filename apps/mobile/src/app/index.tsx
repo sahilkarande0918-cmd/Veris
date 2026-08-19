@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import {
   ActivityIndicator,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,17 +16,27 @@ import { API_BASE, check, health } from "../lib/api"
 import { colors } from "../lib/theme"
 import { setLastResult } from "../lib/store"
 import { triageOnDevice } from "../lib/ondevice"
+import { checkForUpdate, type UpdateInfo } from "../lib/updates"
 
 export default function Home() {
   const [input, setInput] = useState("")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [engine, setEngine] = useState<string | null>(null)
+  const [update, setUpdate] = useState<UpdateInfo | null>(null)
   const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntentContext()
   // The share effect can fire more than once for one share. Without this the
   // same check lands in the tamper-evident ledger twice, which makes the
   // evidence trail look sloppy to anyone reading it.
   const lastHandled = useRef<string | null>(null)
+
+  // Checked quietly on launch. A failure here must never get in the way of
+  // someone trying to verify a message.
+  useEffect(() => {
+    checkForUpdate().then((info) => {
+      if (info?.available) setUpdate(info)
+    })
+  }, [])
 
   useEffect(() => {
     health()
@@ -97,6 +108,20 @@ export default function Home() {
       >
         {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>Check it</Text>}
       </Pressable>
+
+      {update && (
+        <Pressable
+          style={styles.update}
+          onPress={() => void Linking.openURL(update.downloadUrl)}
+          accessibilityRole="button"
+        >
+          <Text style={styles.updateTitle}>Update available: {update.latest}</Text>
+          <Text style={styles.updateText}>
+            You have {update.installed}. Tap to download, then open the file to
+            install over the top -- you do not need to uninstall Veris.
+          </Text>
+        </Pressable>
+      )}
 
       {error && (
         <View style={styles.error}>
@@ -179,4 +204,14 @@ const styles = StyleSheet.create({
   },
   secondaryText: { color: colors.text, fontWeight: "600", fontSize: 15 },
   footer: { color: colors.muted, fontSize: 11, textAlign: "center", marginTop: 4 },
+  update: {
+    backgroundColor: "#10243A",
+    borderColor: colors.accent,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 13,
+    gap: 4,
+  },
+  updateTitle: { color: colors.accent, fontWeight: "700", fontSize: 15 },
+  updateText: { color: colors.muted, fontSize: 13, lineHeight: 19 },
 })

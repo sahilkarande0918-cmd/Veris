@@ -91,17 +91,34 @@ cd apps/mobile/android && ./gradlew :app:assembleRelease -PreactNativeArchitectu
 python scripts/make_qr.py https://your-link-here
 ```
 
-## A caveat worth knowing before you ship an update
+## Signing, and the two files you must never lose
 
-This build is signed with the **debug keystore**, which is Expo's default.
-That is fine for sideloading and for the hackathon, but:
+Release builds are signed with a real keystore (RSA 4096), not Expo's debug
+default. The plugin `plugins/withReleaseSigning.js` wires it in at prebuild
+time, so it survives `prebuild --clean`.
 
-- it cannot be uploaded to the Play Store, and
-- if you later switch to a real keystore, everyone must **uninstall** the old
-  app first. Android refuses to update an app whose signature changed.
+The key lives in `apps/mobile/credentials/`, which is **gitignored** and
+deliberately outside `android/` -- prebuild deletes `android/`, and a signing
+key in a folder you routinely wipe is a key you have already lost.
 
-Generate a proper keystore before any real distribution:
-<https://reactnative.dev/docs/signed-apk-android>.
+```
+apps/mobile/credentials/veris-release.keystore
+apps/mobile/credentials/keystore.properties
+```
+
+**Back both up somewhere off this machine.** If you lose them you can never
+ship an update to anyone who already installed the app: Android refuses an
+update whose signature changed, and there is no recovery path. Losing a
+signing key is one of the few genuinely unfixable mistakes in Android.
+
+A teammate who clones the repo has no credentials. That is intended -- the
+plugin warns and falls back to debug signing so their build still works.
+
+## Upgrading from an earlier build
+
+If you installed a build signed with the old debug key, **uninstall it first**.
+Android will otherwise refuse with a confusing "App not installed". This is a
+one-time cost of moving to a proper key.
 
 ## If someone's phone refuses to install
 
