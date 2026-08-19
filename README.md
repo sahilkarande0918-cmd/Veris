@@ -45,6 +45,24 @@ complaint packet.
 - **[90-second demo script](docs/DEMO_SCRIPT.md)** — what to say, in order, with answers to the hard questions
 - **[Architecture](docs/ARCHITECTURE.md)** — the flow, the trust boundaries, and the deliberate non-goals
 
+## Definition of done
+
+| Requirement | Status | Evidence |
+|---|---|---|
+| Verdict is deterministic; every signal cited; LLM only explains | done | `app/rules.py` is the only writer of a verdict; `Explanation` has no verdict field |
+| Tamper-evident ledger + NCRP packet + live tamper detection | done | `scripts/demo_ledger.py` |
+| Android app, share-sheet intake, evidence panel, works offline | done | verified on device with a real `ACTION_SEND` intent |
+| At least one point-of-attack feature | done | APK static analysis; 3 others declined in writing |
+| Adversarial demo that beats a naive detector | done | 9/9 vs 5/9 |
+| Runs from README on a clean machine | done | fresh venv, no keys: 91 tests + 4/4 demos pass |
+| Ponytail audit clean | done | pyflakes clean over 2,109 lines |
+| No restricted permissions in the Play build | done | release manifest: `INTERNET` + `ACCESS_NETWORK_STATE` only |
+| No definitive accusations; never auto-contacts an officer | done | output says "likely … verify"; every portal link is user-tapped |
+| **Recorded fallback demo video** | **not done — yours to record** | see [DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md#fallback-video) |
+
+The last row cannot be automated. Record `python scripts/demo_all.py` plus the
+phone flow before demo day and keep it on the presenting machine.
+
 ## Layout
 
 ```
