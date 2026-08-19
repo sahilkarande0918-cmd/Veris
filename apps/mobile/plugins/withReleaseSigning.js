@@ -77,8 +77,18 @@ module.exports = function withReleaseSigning(config) {
       "$1signingConfig signingConfigs.verisRelease",
     )
 
+    // Skip merging native debug symbols. There are ~166 .so files across two
+    // ABIs and merging their symbols adds many minutes to every release build,
+    // for a symbol file only useful when uploading to Play for crash reports.
+    if (!gradle.includes("debugSymbolLevel")) {
+      gradle = gradle.replace(
+        /(release\s*\{)/,
+        "$1\n            ndk { debugSymbolLevel 'none' }",
+      )
+    }
+
     cfg.modResults.contents = gradle
-    console.log("[veris-signing] release build will use the Veris keystore")
+    console.log("[veris-signing] release: Veris keystore, native debug symbols skipped")
     return cfg
   })
 }
