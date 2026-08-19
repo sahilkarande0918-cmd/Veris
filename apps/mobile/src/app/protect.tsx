@@ -7,6 +7,7 @@ import {
   requestCallScreeningRole,
   type RoleOutcome,
 } from "../lib/callscreening"
+import { openNotificationAccessSettings } from "../lib/notificationguard"
 import { colors } from "../lib/theme"
 
 const OUTCOME_TEXT: Record<RoleOutcome, string> = {
@@ -63,6 +64,44 @@ export default function Protect() {
         {status && <Text style={styles.status}>{status}</Text>}
       </View>
 
+      <View style={[styles.card, styles.feature]}>
+        <Text style={styles.title}>Warn me automatically</Text>
+        <Text style={styles.body}>
+          Veris can watch the notifications that arrive on this phone -- SMS,
+          WhatsApp, email, anything -- and put a warning in your notification
+          bar within a second when a message looks like a scam. Nothing to
+          paste, nothing to share.
+        </Text>
+        <Text style={styles.note}>
+          It never blocks, deletes or changes your messages. It only adds its
+          own warning next to them.
+        </Text>
+        <Text style={styles.note}>
+          Every message is judged on this phone. The text is scored and thrown
+          away immediately -- it is never sent to our server or anywhere else,
+          and it is never saved.
+        </Text>
+        <Text style={styles.warn}>
+          Android will warn you that Veris can read all your notifications.
+          That warning is correct, and you should take it seriously for any app.
+          Ours are checked and discarded on the device; the code is in
+          plugins/withNotificationGuard.js if you want to read it.
+        </Text>
+        <Pressable
+          style={({ pressed }) => [styles.primary, pressed && { opacity: 0.8 }]}
+          onPress={async () => {
+            const opened = await openNotificationAccessSettings()
+            setStatus(
+              opened
+                ? "Find Veris in the list and turn it on. Then send yourself a test message."
+                : "Could not open the settings screen. Look for Notification access in Settings.",
+            )
+          }}
+        >
+          <Text style={styles.primaryText}>Turn on automatic warnings</Text>
+        </Pressable>
+      </View>
+
       <View style={styles.card}>
         <Text style={styles.title}>Offline scam triage</Text>
         <Text style={styles.body}>
@@ -106,7 +145,8 @@ const styles = StyleSheet.create({
   title: { color: colors.text, fontWeight: "700", fontSize: 17 },
   body: { color: colors.text, fontSize: 14, lineHeight: 21 },
   note: { color: colors.muted, fontSize: 13, lineHeight: 19 },
-  warn: { color: colors.warn, fontSize: 13 },
+  warn: { color: colors.warn, fontSize: 13, lineHeight: 19 },
+  feature: { borderColor: colors.accent },
   primary: {
     backgroundColor: colors.accent,
     borderRadius: 10,

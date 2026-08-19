@@ -1,0 +1,135 @@
+{
+  "_note": "Everything the phone needs to judge a message with no server. Bundled into the APK at build time by plugins/withNotificationGuard.js and read by the notification guard and the call screener.",
+  "_rule": "Same rule as the backend: every entry here is a deterministic check with a named source. Nothing in this file is a model or a probability.",
+  "_updated": "2026-08-20",
+  "brand_domains": {
+    "hdfcbank.com": "HDFC Bank",
+    "icicibank.com": "ICICI Bank",
+    "sbi.co.in": "State Bank of India",
+    "onlinesbi.sbi": "State Bank of India",
+    "bank.sbi": "State Bank of India",
+    "axisbank.com": "Axis Bank",
+    "kotak.com": "Kotak Mahindra Bank",
+    "pnbindia.in": "Punjab National Bank",
+    "bankofbaroda.in": "Bank of Baroda",
+    "canarabank.com": "Canara Bank",
+    "unionbankofindia.co.in": "Union Bank of India",
+    "idfcfirstbank.com": "IDFC FIRST Bank",
+    "federalbank.co.in": "Federal Bank",
+    "paytm.com": "Paytm",
+    "phonepe.com": "PhonePe",
+    "mobikwik.com": "MobiKwik",
+    "npci.org.in": "NPCI",
+    "bhimupi.org.in": "NPCI BHIM",
+    "rbi.org.in": "Reserve Bank of India",
+    "cybercrime.gov.in": "National Cyber Crime Reporting Portal",
+    "sancharsaathi.gov.in": "Sanchar Saathi",
+    "incometax.gov.in": "Income Tax India",
+    "uidai.gov.in": "UIDAI (Aadhaar)",
+    "epfindia.gov.in": "EPFO",
+    "digilocker.gov.in": "DigiLocker",
+    "irctc.co.in": "IRCTC",
+    "jio.com": "Jio",
+    "airtel.in": "Airtel"
+  },
+  "scam_phrases": [
+    {
+      "pattern": "kyc.{0,24}(expir|updat|suspend|pending|complet)",
+      "label": "KYC expiry pressure",
+      "weight": 25
+    },
+    {
+      "pattern": "(account|khata).{0,20}(block|freez|suspend|deactivat)",
+      "label": "account-blocked threat",
+      "weight": 25
+    },
+    {
+      "pattern": "(otp|cvv|pin|password).{0,30}(share|send|tell|bata|batao|forward)",
+      "label": "asks you to share an OTP or PIN",
+      "weight": 30
+    },
+    {
+      "pattern": "(lottery|lucky draw|prize|winner|inam)",
+      "label": "lottery or prize claim",
+      "weight": 20
+    },
+    {
+      "pattern": "(instant|quick|turant).{0,16}(loan|cash|credit)",
+      "label": "instant-loan offer",
+      "weight": 20
+    },
+    {
+      "pattern": "(electricity|bijli).{0,24}(disconnect|bill|due)",
+      "label": "electricity disconnection threat",
+      "weight": 20
+    },
+    {
+      "pattern": "(refund|cashback).{0,24}(claim|process|pending)",
+      "label": "refund or cashback bait",
+      "weight": 20
+    },
+    {
+      "pattern": "(courier|parcel|customs).{0,24}(hold|seiz|clear|detain)",
+      "label": "parcel-held scam",
+      "weight": 20
+    },
+    {
+      "pattern": "(digital arrest|narcotics|money laundering)",
+      "label": "digital-arrest intimidation",
+      "weight": 30
+    },
+    {
+      "pattern": "(within|in) ?\\d{1,2} ?(hour|hrs|minute|min|ghante)",
+      "label": "artificial time pressure",
+      "weight": 15
+    },
+    {
+      "pattern": "(click|open).{0,16}(link|link below|is link)",
+      "label": "pushes you to open a link",
+      "weight": 10
+    }
+  ],
+  "reported_vpas": [
+    "kycupdate2026@ybl",
+    "sbi.refund.claim@okaxis",
+    "instantloan.approve@paytm",
+    "lottery.winner.claim@okhdfcbank",
+    "electricity.bill.due@oksbi"
+  ],
+  "blocked_hosts": [
+    "sbi-kyc-verify-online.top",
+    "hdfcbank-secure-login.top",
+    "icici-netbanking-update.xyz",
+    "axisbank-account-kyc.click",
+    "paytm-cashback-offer-2026.xyz",
+    "loan-instant-approval.icu",
+    "free-recharge-app.icu",
+    "pmkisan-yojana-registration.icu",
+    "hdfcbank.com.secure-verify.top",
+    "xn--hdfcbnk-6fg.com",
+    "uidai-aadhaar-update.click",
+    "epfo-pf-withdrawal.top"
+  ],
+  "weights": {
+    "blocklist_hit": 70,
+    "reported_vpa": 70,
+    "userinfo_deception": 60,
+    "brand_as_subdomain": 60,
+    "non_english_host": 55,
+    "ip_address_host": 45,
+    "reported_number": 70,
+    "scam_wording_cap": 50
+  },
+  "thresholds": {
+    "likely_scam": 60,
+    "suspicious": 30
+  },
+  "reported_numbers": [
+    "9000000001",
+    "9000000002",
+    "9000000003",
+    "8000000011",
+    "7000000022",
+    "+919000000004"
+  ]
+}

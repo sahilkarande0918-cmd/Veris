@@ -438,6 +438,39 @@ contacts an officer.
 
 ## Protection features (on the phone)
 
+### Automatic warnings (the notification guard)
+
+The feature most people actually want: a message arrives, and a second later
+the notification bar says whether it is a scam. No pasting, no sharing.
+
+Veris registers a `NotificationListenerService`, so Android hands it every
+notification other apps post -- SMS, WhatsApp, Gmail, anything. It scores the
+text with the same deterministic checks the engine uses, and if it looks like
+a scam it posts **its own** warning next to the message. Tapping that warning
+opens Veris with the text for the full evidence panel.
+
+Three guarantees, and they are in the code, not just the pitch:
+
+1. **It never blocks anything.** No notification is dismissed, altered, or
+   hidden. Veris only adds a warning of its own. Your messages stay yours.
+2. **Nothing leaves the phone.** The text is scored on-device against a rules
+   file bundled into the APK and then discarded. It is never sent to our
+   server, never written to the ledger, never stored.
+3. **It needs no restricted permission.** No `READ_SMS`, no `READ_CALL_LOG`.
+
+Notification access is granted on a dedicated system settings screen that
+warns the user Veris can read all notifications. That warning is accurate and
+the app says so plainly rather than talking the user past it -- see the
+Protection screen.
+
+Rules live in `fixtures/ondevice_rules.json` (brands, scam wording, reported
+UPI ids and numbers, blocked hosts, weights, thresholds) and are bundled by
+`plugins/withNotificationGuard.js`. Editing that one file changes what both
+the guard and the call screener catch.
+
+Try it after installing: send yourself an SMS reading
+`Your SBI KYC has expired, account blocked within 2 hours. Pay kycupdate2026@ybl`.
+
 ### Call screening
 
 Veris can register as Android's call screener. When a number that is not in
