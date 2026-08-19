@@ -275,6 +275,38 @@ not. Delete `$ANDROID_HOME/ndk/27.1.12297006` and build again, or install the
 NDK from Android Studio's SDK Manager (SDK Tools -> NDK, "Show Package
 Details" -> 27.1.12297006).
 
+**Gradle fails with `Cannot snapshot ... libc++_shared.so: not a regular file`,
+or `rm` reports "device or resource busy".** This repo lives under OneDrive.
+OneDrive's Files-On-Demand replaces synced files with cloud placeholders, and
+Gradle cannot read a placeholder as a native library -- it will dehydrate the
+`.so` files a native build has just produced, mid-build.
+
+Pin the folder so OneDrive leaves it alone, then clear the stale output:
+
+```powershell
+attrib +P /s /d apps/mobile/node_modules/*
+```
+
+```powershell
+Get-ChildItem apps/mobile/node_modules -Recurse -Directory -Filter cxx | Remove-Item -Recurse -Force
+```
+
+Pinning only helps for files that already exist. A **release** build compiles
+fresh native libraries, and OneDrive dehydrates them again while Gradle is
+still working, so `assembleRelease` fails repeatedly from inside OneDrive
+however many times you clear the output. Debug builds are unaffected, which is
+how this stays hidden until the worst moment.
+
+The fix is to move the repo **outside** OneDrive:
+
+```powershell
+robocopy "$env:USERPROFILE/OneDrive/Desktop/Veris" C:/dev/Veris /E /XD node_modules .venv android
+```
+
+Then reinstall (`npm install`, recreate the venv) and build from `C:/dev/Veris`.
+Debug builds, the test suite, and every demo script work fine from OneDrive --
+only the release APK needs the move.
+
 **`java -version` shows 1.8.** Gradle needs JDK 17+. Point `JAVA_HOME` at the
 JDK bundled with Android Studio instead of installing another:
 `C:\Program Files\Android\Android Studio\jbr`.
