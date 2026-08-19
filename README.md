@@ -20,7 +20,30 @@ decides, and never changes, the verdict.
 | 4 | Android app (share-sheet intake, evidence panel) | done |
 | 5 | Point-of-attack: APK static analysis | done (1 of 3, others declined) |
 | 6 | India grounding + adversarial demo | done |
-| 7 | Demo hardening | todo |
+| 7 | Demo hardening | done |
+
+## Run the whole demo, offline
+
+One command, no network, no keys, throwaway ledger. If this exits 0 on a cold
+machine, the demo works:
+
+```bash
+python scripts/demo_all.py
+```
+
+It runs every claim the pitch makes: the homoglyph catch, the cited evidence,
+the Marathi explanation, the fake-loan APK, tamper detection, and the
+complaint packet.
+
+| Demo | What it shows |
+|---|---|
+| `scripts/demo_all.py` | everything, offline, with pass/fail checks |
+| `scripts/demo_adversarial.py` | naive detector 5/9 vs Veris 9/9 |
+| `scripts/demo_ledger.py` | forge the log, watch the chain catch it |
+| `scripts/demo_apk.py` | fake loan app judged on its manifest |
+
+- **[90-second demo script](docs/DEMO_SCRIPT.md)** — what to say, in order, with answers to the hard questions
+- **[Architecture](docs/ARCHITECTURE.md)** — the flow, the trust boundaries, and the deliberate non-goals
 
 ## Layout
 
@@ -249,17 +272,22 @@ storage by default for file sharing we do not use. Those are stripped via
 `android.blockedPermissions` in `app.json`; verified absent on-device with
 `adb shell dumpsys package in.veris.app`.
 
-One caveat, stated precisely because it is the kind of thing a judge will
-check: a **debug** build also carries `SYSTEM_ALERT_WINDOW`. That comes from
-React Native itself, in `node_modules/react-native/ReactAndroid/src/debug/AndroidManifest.xml`,
-for the dev overlay. Gradle merges that manifest only for debug variants, so it
-is absent from a release build. Confirm before shipping:
+**Verified** on the release manifest, not just asserted:
 
 ```bash
-cd apps/mobile && npx expo run:android --variant release
+cd apps/mobile/android && ./gradlew :app:processReleaseMainManifest
 ```
 
-then `aapt dump permissions` on the resulting APK.
+```
+android.permission.INTERNET
+android.permission.ACCESS_NETWORK_STATE
+in.veris.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION   (internal, RN-generated)
+```
+
+A **debug** build additionally carries `SYSTEM_ALERT_WINDOW`, from React
+Native's own `ReactAndroid/src/debug/AndroidManifest.xml` (the dev overlay).
+Gradle merges that manifest only for debug variants, which the release output
+above confirms.
 
 **Native config changes need a clean prebuild.** `expo run:android` skips
 prebuild when `android/` already exists, so edits to `app.json` silently do
