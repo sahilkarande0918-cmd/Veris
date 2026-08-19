@@ -1,0 +1,20 @@
+# Reported scam / fraud phone numbers -- SYNTHETIC demo data, see fixtures/README.md
+#
+# Used two ways:
+#   1. the verdict engine, when you check a number by hand
+#   2. the on-device call screening service, which is bundled a copy of this
+#      file at build time so it works with no network and no server
+#
+# Format: one number per line, digits only or +91 form. Blank lines and
+# comments ignored. Matching is done on the last 10 digits, so +91/0 prefixes
+# and spacing do not matter.
+#
+# In production this list is fed by user reports through the Phase 3 ledger,
+# and would be reconciled against the DoT / Sanchar Saathi reported-number
+# rails. Numbers below are invented for the demo and belong to nobody.
+9000000001
+9000000002
+9000000003
+8000000011
+7000000022
++919000000004

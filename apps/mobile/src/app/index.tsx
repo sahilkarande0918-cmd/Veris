@@ -14,6 +14,7 @@ import { useShareIntentContext } from "expo-share-intent"
 import { API_BASE, check, health } from "../lib/api"
 import { colors } from "../lib/theme"
 import { setLastResult } from "../lib/store"
+import { triageOnDevice } from "../lib/ondevice"
 
 export default function Home() {
   const [input, setInput] = useState("")
@@ -51,7 +52,15 @@ export default function Home() {
       setLastResult(result)
       router.push("/result")
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught))
+      // The server is unreachable. Rather than failing, score it on the phone:
+      // a weaker check, clearly labelled, beats no answer when someone is
+      // standing at a counter deciding whether to pay.
+      const local = triageOnDevice(value)
+      setLastResult(local)
+      setError(
+        "Could not reach the Veris server, so this was checked on your phone instead. It is a lighter check -- run the full one when you have a connection.",
+      )
+      router.push("/result")
     } finally {
       setBusy(false)
     }
@@ -97,6 +106,10 @@ export default function Home() {
           Veris. It is checked the moment it arrives.
         </Text>
       </View>
+
+      <Pressable style={styles.secondary} onPress={() => router.push("/protect")}>
+        <Text style={styles.secondaryText}>Protection settings</Text>
+      </Pressable>
 
       <Pressable style={styles.secondary} onPress={() => router.push("/history")}>
         <Text style={styles.secondaryText}>Evidence ledger</Text>

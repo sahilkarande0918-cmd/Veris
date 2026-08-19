@@ -33,6 +33,16 @@ export default function Result() {
         {result.subject.value}
       </Text>
 
+      {result.engine_version === "on-device" && (
+        <View style={styles.offlineNote}>
+          <Text style={styles.offlineText}>
+            Checked on this phone, with no server. Fewer checks ran than usual --
+            no blocklist feeds and no registration lookup. Run it again when you
+            have a connection.
+          </Text>
+        </View>
+      )}
+
       {explanation && (
         <View style={styles.card}>
           <View style={styles.cardHead}>
@@ -123,4 +133,12 @@ const styles = StyleSheet.create({
   },
   primaryText: { color: "#fff", fontWeight: "700", fontSize: 16 },
   disclaimer: { color: colors.muted, fontSize: 11, lineHeight: 17, marginTop: 4 },
+  offlineNote: {
+    backgroundColor: "#2A2410",
+    borderColor: colors.warn,
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 11,
+  },
+  offlineText: { color: "#FFE3A8", fontSize: 12, lineHeight: 18 },
 })

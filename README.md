@@ -275,37 +275,29 @@ not. Delete `$ANDROID_HOME/ndk/27.1.12297006` and build again, or install the
 NDK from Android Studio's SDK Manager (SDK Tools -> NDK, "Show Package
 Details" -> 27.1.12297006).
 
-**Gradle fails with `Cannot snapshot ... libc++_shared.so: not a regular file`,
-or `rm` reports "device or resource busy".** This repo lives under OneDrive.
-OneDrive's Files-On-Demand replaces synced files with cloud placeholders, and
-Gradle cannot read a placeholder as a native library -- it will dehydrate the
-`.so` files a native build has just produced, mid-build.
+**Gradle fails with `Cannot snapshot ... libc++_shared.so: not a regular file`.**
+The real cause is not your project folder: it is the **NDK's own copy** of
+`libc++_shared.so` being a cloud placeholder (a reparse point). CMake copies
+that file into every native module's build directory, and each copy inherits
+the placeholder state -- which is why the failure appears to hop from module to
+module, and why moving the repo does not fix it.
 
-Pin the folder so OneDrive leaves it alone, then clear the stale output:
+Find and hydrate any placeholder inside the NDK:
 
 ```powershell
-attrib +P /s /d apps/mobile/node_modules/*
+Get-ChildItem "$env:LOCALAPPDATA/Android/Sdk/ndk" -Recurse -File | Where-Object { $_.Attributes -band [IO.FileAttributes]::ReparsePoint }
 ```
+
+Rewrite each one in place (read the bytes, delete, write them back), then
+delete the contaminated copies so Gradle re-creates them:
 
 ```powershell
 Get-ChildItem apps/mobile/node_modules -Recurse -Directory -Filter cxx | Remove-Item -Recurse -Force
 ```
 
-Pinning only helps for files that already exist. A **release** build compiles
-fresh native libraries, and OneDrive dehydrates them again while Gradle is
-still working, so `assembleRelease` fails repeatedly from inside OneDrive
-however many times you clear the output. Debug builds are unaffected, which is
-how this stays hidden until the worst moment.
-
-The fix is to move the repo **outside** OneDrive:
-
-```powershell
-robocopy "$env:USERPROFILE/OneDrive/Desktop/Veris" C:/dev/Veris /E /XD node_modules .venv android
-```
-
-Then reinstall (`npm install`, recreate the venv) and build from `C:/dev/Veris`.
-Debug builds, the test suite, and every demo script work fine from OneDrive --
-only the release APK needs the move.
+Keeping the repo outside a synced folder is still worth doing -- OneDrive also
+causes `rm` to fail with "device or resource busy" -- but on its own it does
+not fix this.
 
 **`java -version` shows 1.8.** Gradle needs JDK 17+. Point `JAVA_HOME` at the
 JDK bundled with Android Studio instead of installing another:
@@ -443,6 +435,58 @@ copy of RBI's directory, so a domain missing from it scores *suspicious* with
 the words "not on our list -- verify on the RBI directory", never "illegitimate".
 And Veris opens these portals for the user; it never files anything and never
 contacts an officer.
+
+## Protection features (on the phone)
+
+### Call screening
+
+Veris can register as Android's call screener. When a number that is not in
+your contacts rings, Android hands it to `VerisCallScreeningService`, which has
+a few seconds to answer. It checks the number against a scam list **bundled
+into the APK**, so it works with no network and no server, and rejects a match
+before the phone rings.
+
+- Needs the `CALL_SCREENING` role, which the user grants explicitly.
+- Needs **no** `READ_CALL_LOG`: screening only ever sees the number currently
+  calling, never your history.
+- Declared by `plugins/withCallScreening.js`, a config plugin, so it survives
+  `prebuild`. The Kotlin service and the bundled number list are generated,
+  never hand-edited into `android/`.
+- An unrecognised number is always allowed through. A fraud tool that silently
+  swallows calls is worse than one that does nothing.
+
+Enable it on the Protection screen. Some OEM builds reserve the role for their
+own dialler, so the app also offers a link to Default apps settings.
+
+### On-device triage
+
+If the engine is unreachable, the app still answers, using the same rule as the
+backend: deterministic checks over local data, each citing what it matched.
+
+It runs scam-wording patterns (in the languages the messages actually arrive
+in), a bundled reported-VPA list, and URL structure checks -- userinfo
+deception, brand-as-subdomain, non-English characters in a hostname, raw IP
+hosts.
+
+It is deliberately weaker than the server: no blocklist feeds, no Unicode
+confusables table, no RDAP. Wording alone can never reach `likely_scam`, every
+result is stamped `engine_version: "on-device"`, and the Result screen says so
+in a banner. Run it:
+
+```bash
+cd apps/mobile && node --experimental-strip-types scripts/check-ondevice.mjs
+```
+
+### Reading SMS automatically
+
+Veris does not, on purpose. Google Play only allows `READ_SMS` for an app that
+is the device's **default SMS handler** -- so it is possible, but it would mean
+replacing the user's messaging app and gaining standing access to every message
+they receive, in exchange for checking a link.
+
+The share sheet gets the same result with one tap and no permission. The full
+analysis, including the two OTP-only APIs that look compliant but detect
+nothing, is in [docs/SMS_ACCESS.md](docs/SMS_ACCESS.md).
 
 ## The evidence ledger
 
