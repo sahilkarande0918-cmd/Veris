@@ -17,7 +17,7 @@ decides, and never changes, the verdict.
 | 1 | Verdict engine: deterministic checks | done |
 | 2 | Explanation layer (Groq, explains only) | done |
 | 3 | Tamper-evident evidence ledger | done |
-| 4 | Android app (share-sheet intake, evidence panel) | todo |
+| 4 | Android app (share-sheet intake, evidence panel) | done |
 | 5 | Point-of-attack features (APK, call screening) | todo |
 | 6 | India grounding + adversarial demo | todo |
 | 7 | Demo hardening | todo |
@@ -160,6 +160,88 @@ optional.** With no keys at all the engine still returns a verdict from local
 blocklists and offline checks -- that is deliberate, so a live demo never
 depends on a network call. Set `VERIS_OFFLINE=1` to block outbound calls
 entirely.
+
+## The Android app
+
+`apps/mobile` is an Expo (SDK 57) React Native app in TypeScript. Four
+screens: Home (paste or share-sheet intake), Result (verdict badge, evidence
+panel, explanation with a language toggle), Report (complaint packet), and
+Ledger (chain status and history).
+
+### It needs a development build, not Expo Go
+
+Veris registers itself as an Android **share target**, which requires an
+`intent-filter` in the manifest. Expo Go can only run standard SDK modules and
+cannot load custom native config, so share-sheet intake — and the Phase 5
+call-screening module — will not work there. You need a dev build.
+
+The intent filter is declared by the `expo-share-intent` **config plugin** in
+`app.json`, never by hand-editing `android/`, which `prebuild` regenerates.
+
+### One-time setup
+
+Requires Android Studio (for the SDK and its bundled JDK), a device with
+USB debugging on, and the verdict engine running.
+
+```bash
+adb reverse tcp:8000 tcp:8000
+```
+
+That maps the phone's `localhost:8000` to the engine on your machine. If the
+port is taken, run the engine elsewhere and point the app at it with
+`apps/mobile/.env`:
+
+```bash
+EXPO_PUBLIC_VERIS_API=http://127.0.0.1:8010
+```
+
+Then build and install to the connected device:
+
+```bash
+cd apps/mobile && npx expo run:android
+```
+
+If `java -version` shows anything below 17, point `JAVA_HOME` at the JDK
+bundled with Android Studio (`C:\Program Files\Android\Android Studio\jbr` on
+Windows) rather than installing another one.
+
+### Day-to-day iteration
+
+```bash
+cd apps/mobile && npx expo start --dev-client
+```
+
+JS and UI changes hot-reload over USB. Only re-run `expo run:android` when
+**native** config changes — adding an intent filter, or the Phase 5 call
+screening module.
+
+### Troubleshooting
+
+**"Engine did not respond" in the app.** `adb reverse` does not survive an adb
+server restart (or unplugging the phone). Re-run it and check:
+
+```bash
+adb reverse tcp:8000 tcp:8000 && adb reverse --list
+```
+
+**Gradle fails with `InstallFailedException: ndk;27.1.12297006`.** React
+Native 0.86 pins that exact NDK. Gradle auto-downloads it, but if the download
+is interrupted it leaves a ~1 KB stub directory that looks installed and is
+not. Delete `$ANDROID_HOME/ndk/27.1.12297006` and build again, or install the
+NDK from Android Studio's SDK Manager (SDK Tools -> NDK, "Show Package
+Details" -> 27.1.12297006).
+
+**`java -version` shows 1.8.** Gradle needs JDK 17+. Point `JAVA_HOME` at the
+JDK bundled with Android Studio instead of installing another:
+`C:\Program Files\Android\Android Studio\jbr`.
+
+### Permissions
+
+The build requests `INTERNET` and nothing else. `expo-share-intent` pulls in
+`SYSTEM_ALERT_WINDOW` and external-storage permissions by default for file
+sharing we do not use; those are stripped via `android.blockedPermissions` in
+`app.json`. There is no `READ_SMS` or `READ_CALL_LOG` — both are banned by
+Play policy and neither is needed.
 
 ## The evidence ledger
 
