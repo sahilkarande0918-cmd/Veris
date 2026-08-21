@@ -101,6 +101,51 @@ def sign_head(head_hash: str) -> str:
     return hmac.new(key.encode(), head_hash.encode(), hashlib.sha256).hexdigest()
 
 
+def _write_all(records: list[dict]) -> None:
+    ledger_path().write_text(
+        "\n".join(json.dumps(r, ensure_ascii=False) for r in records) + ("\n" if records else ""),
+        encoding="utf-8",
+    )
+
+
+def demo_tamper() -> dict:
+    """DEMO ONLY: edit a record in place WITHOUT fixing its hash.
+
+    This is what an attacker with file access would do -- change a stored
+    verdict after the fact. It leaves the chain detectably broken so the app
+    can show tamper-detection live. Never call this outside a demo; the API
+    only exposes it when VERIS_DEMO=1.
+    """
+    records = read_all()
+    if len(records) < 2:
+        return {"tampered": False, "detail": "need at least 2 records; check something first"}
+    # Edit a middle record so the break is visibly not at the head.
+    target = records[len(records) // 2]
+    payload = target.get("payload", {})
+    payload["verdict"] = "safe"
+    payload["score"] = 0
+    _write_all(records)  # hashes intentionally NOT recomputed
+    return {"tampered": True, "seq": target.get("seq"), "detail": "changed a stored verdict to 'safe' without re-signing"}
+
+
+def demo_rebuild() -> dict:
+    """DEMO ONLY: re-seal the chain over the current records.
+
+    Recomputes every prev_hash/hash in order so /ledger/verify passes again --
+    lets the stage demo run green -> tamper -> red -> green repeatably. Only
+    exposed when VERIS_DEMO=1.
+    """
+    records = read_all()
+    prev = GENESIS
+    for i, record in enumerate(records, start=1):
+        record["seq"] = i
+        record["prev_hash"] = prev
+        record["hash"] = compute_hash(record)
+        prev = record["hash"]
+    _write_all(records)
+    return {"rebuilt": True, "count": len(records)}
+
+
 def verify() -> dict:
     """Walk the chain and report the first break, precisely.
 

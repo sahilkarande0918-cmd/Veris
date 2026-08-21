@@ -17,6 +17,7 @@ import { colors } from "../lib/theme"
 import { setLastResult } from "../lib/store"
 import { triageOnDevice } from "../lib/ondevice"
 import { checkForUpdate, type UpdateInfo } from "../lib/updates"
+import * as ImagePicker from "expo-image-picker"
 import { firstCandidate, textFromImage } from "../lib/ocr"
 
 export default function Home() {
@@ -69,6 +70,17 @@ export default function Home() {
     resetShareIntent()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasShareIntent])
+
+  async function pickScreenshot() {
+    // Android 13+ photo picker needs no permission; it returns one image uri.
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      quality: 1,
+    })
+    if (!result.canceled && result.assets[0]?.uri) {
+      await handleScreenshot(result.assets[0].uri)
+    }
+  }
 
   async function handleScreenshot(uri: string) {
     setBusy(true)
@@ -169,6 +181,10 @@ export default function Home() {
 
       <Pressable style={styles.secondary} onPress={() => router.push("/scan" as "/")}>
         <Text style={styles.secondaryText}>Scan a QR code</Text>
+      </Pressable>
+
+      <Pressable style={styles.secondary} onPress={pickScreenshot} disabled={busy}>
+        <Text style={styles.secondaryText}>Check a screenshot</Text>
       </Pressable>
 
       <Pressable style={styles.secondary} onPress={() => router.push("/protect")}>

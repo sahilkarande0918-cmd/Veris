@@ -2,7 +2,14 @@ import { useCallback, useState } from "react"
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
 import { useFocusEffect } from "expo-router"
 
-import { ledgerEvents, verifyChain, type ChainStatus, type LedgerEvent } from "../lib/api"
+import {
+  demoRebuild,
+  demoTamper,
+  ledgerEvents,
+  verifyChain,
+  type ChainStatus,
+  type LedgerEvent,
+} from "../lib/api"
 import { colors } from "../lib/theme"
 
 export default function History() {
@@ -36,10 +43,11 @@ export default function History() {
       {chain && (
         <View style={[styles.chain, { borderColor: chain.ok ? colors.safe : colors.danger }]}>
           <Text style={[styles.chainTitle, { color: chain.ok ? colors.safe : colors.danger }]}>
-            {chain.ok ? "CHAIN INTACT" : `TAMPERING DETECTED AT RECORD ${chain.broken_at}`}
+            {chain.ok
+              ? `✓  Chain intact — ${chain.count} record(s) verified`
+              : `✗  Tampering detected at record ${chain.broken_at}`}
           </Text>
           <Text style={styles.chainReason}>{chain.reason}</Text>
-          <Text style={styles.mono}>{chain.count} record(s)</Text>
           {chain.head_hash && (
             <Text style={styles.mono} numberOfLines={1}>
               head {chain.head_hash.slice(0, 32)}...
@@ -48,9 +56,35 @@ export default function History() {
         </View>
       )}
 
-      <Pressable style={styles.refresh} onPress={load}>
-        <Text style={styles.refreshText}>Re-verify chain</Text>
+      <Pressable style={styles.verify} onPress={load}>
+        <Text style={styles.verifyText}>Verify evidence integrity</Text>
       </Pressable>
+
+      {__DEV__ && (
+        <View style={styles.demo}>
+          <Text style={styles.demoLabel}>Demo controls (dev build only)</Text>
+          <View style={styles.demoRow}>
+            <Pressable
+              style={[styles.demoBtn, { borderColor: colors.danger }]}
+              onPress={async () => {
+                await demoTamper()
+                await load()
+              }}
+            >
+              <Text style={[styles.demoBtnText, { color: colors.danger }]}>Break the chain</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.demoBtn, { borderColor: colors.safe }]}
+              onPress={async () => {
+                await demoRebuild()
+                await load()
+              }}
+            >
+              <Text style={[styles.demoBtnText, { color: colors.safe }]}>Restore</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
 
       {busy && <ActivityIndicator color={colors.accent} />}
       {error && <Text style={styles.error}>{error}</Text>}
@@ -99,14 +133,25 @@ const styles = StyleSheet.create({
   chain: { borderWidth: 2, borderRadius: 12, padding: 14, gap: 4, backgroundColor: colors.card },
   chainTitle: { fontWeight: "800", fontSize: 16, letterSpacing: 0.5 },
   chainReason: { color: colors.text, fontSize: 13, lineHeight: 19 },
-  refresh: {
-    borderColor: colors.cardEdge,
-    borderWidth: 1,
+  verify: {
+    backgroundColor: colors.accent,
     borderRadius: 10,
-    paddingVertical: 11,
+    paddingVertical: 13,
     alignItems: "center",
   },
-  refreshText: { color: colors.text, fontWeight: "600", fontSize: 14 },
+  verifyText: { color: "#fff", fontWeight: "700", fontSize: 15 },
+  demo: {
+    borderColor: colors.cardEdge,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderRadius: 10,
+    padding: 10,
+    gap: 8,
+  },
+  demoLabel: { color: colors.muted, fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5 },
+  demoRow: { flexDirection: "row", gap: 10 },
+  demoBtn: { flex: 1, borderWidth: 1, borderRadius: 8, paddingVertical: 10, alignItems: "center" },
+  demoBtnText: { fontWeight: "700", fontSize: 13 },
   row: {
     backgroundColor: colors.card,
     borderColor: colors.cardEdge,

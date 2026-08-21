@@ -124,6 +124,33 @@ def ledger_events() -> dict:
     return {"events": read_all()}
 
 
+def _demo_enabled() -> bool:
+    """The tamper demo controls only exist when explicitly turned on."""
+    import os
+
+    return os.getenv("VERIS_DEMO", "0") == "1"
+
+
+@app.post("/ledger/dev/tamper")
+def ledger_tamper() -> dict:
+    """DEMO ONLY (VERIS_DEMO=1): break the chain so tamper-detection is visible."""
+    from .ledger import demo_tamper
+
+    if not _demo_enabled():
+        raise HTTPException(status_code=404, detail="not found")
+    return demo_tamper()
+
+
+@app.post("/ledger/dev/rebuild")
+def ledger_rebuild() -> dict:
+    """DEMO ONLY (VERIS_DEMO=1): re-seal the chain so it verifies green again."""
+    from .ledger import demo_rebuild
+
+    if not _demo_enabled():
+        raise HTTPException(status_code=404, detail="not found")
+    return demo_rebuild()
+
+
 @app.get("/ledger/verify")
 def ledger_verify() -> dict:
     """Walk the hash chain and report the first break, with the reason.

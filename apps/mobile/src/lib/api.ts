@@ -128,6 +128,16 @@ export function verifyChain(): Promise<ChainStatus> {
   return request<ChainStatus>("/ledger/verify")
 }
 
+/** DEMO ONLY (engine started with VERIS_DEMO=1): break the chain to show detection. */
+export function demoTamper(): Promise<{ tampered: boolean; seq?: number; detail: string }> {
+  return request("/ledger/dev/tamper", { method: "POST" })
+}
+
+/** DEMO ONLY: re-seal the chain so it verifies green again (repeatable demo). */
+export function demoRebuild(): Promise<{ rebuilt: boolean; count: number }> {
+  return request("/ledger/dev/rebuild", { method: "POST" })
+}
+
 export function submitReport(complaint: Record<string, unknown>): Promise<Record<string, unknown>> {
   return request<Record<string, unknown>>("/ledger/report", {
     method: "POST",
