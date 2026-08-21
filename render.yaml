@@ -1,0 +1,23 @@
+# Render Blueprint — deploys the Veris verdict engine to a free public URL.
+#
+# Render's free web-service tier: no credit card, public HTTPS URL, spins down
+# after ~15 min idle and cold-starts (~50s) on the next request. Fine for a
+# demo; warm it with one request before presenting.
+#
+# One-time setup (2 minutes):
+#   1. Sign in at render.com with your GitHub account (free).
+#   2. New +  ->  Blueprint  ->  pick the sahilkarande0918-cmd/Veris repo.
+#   3. Render reads this file and builds the Dockerfile. Click Apply.
+#   4. When it's live, copy the URL (https://veris-engine-XXXX.onrender.com).
+#
+# The ledger is ephemeral on the free tier (resets on redeploy) -- fine for the
+# demo, which creates and tampers records live within one session.
+services:
+  - type: web
+    name: veris-engine
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    envVars:
+      - key: VERIS_DEMO
+        value: "1" # enables the live tamper-demo endpoints

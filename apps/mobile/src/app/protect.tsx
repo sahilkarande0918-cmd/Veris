@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native"
 
 import {
   isSupported,
@@ -11,6 +11,7 @@ import {
   openNotificationAccessSettings,
   requestPostNotifications,
 } from "../lib/notificationguard"
+import { getEngineUrl, setEngineUrl } from "../lib/api"
 import { colors } from "../lib/theme"
 
 const OUTCOME_TEXT: Record<RoleOutcome, string> = {
@@ -23,6 +24,7 @@ const OUTCOME_TEXT: Record<RoleOutcome, string> = {
 
 export default function Protect() {
   const [status, setStatus] = useState<string | null>(null)
+  const [engineUrl, setEngineUrlInput] = useState<string>(getEngineUrl())
 
   async function enableScreening() {
     const outcome = await requestCallScreeningRole()
@@ -41,6 +43,34 @@ export default function Protect() {
         Veris checks what you send it. These add-ons let it warn you at the
         moment an attack arrives, without sending anything off your phone.
       </Text>
+
+      <View style={[styles.card, styles.feature]}>
+        <Text style={styles.title}>Engine URL</Text>
+        <Text style={styles.body}>
+          Where the full verdict engine runs. Use your laptop's address on the
+          same Wi-Fi (http://192.168.x.x:8010), or a hosted URL to use it on any
+          network. The on-device checks work even if this is unreachable.
+        </Text>
+        <TextInput
+          style={styles.input}
+          value={engineUrl}
+          onChangeText={setEngineUrlInput}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="url"
+          placeholder="http://192.168.1.7:8010"
+          placeholderTextColor={colors.muted}
+        />
+        <Pressable
+          style={({ pressed }) => [styles.primary, pressed && { opacity: 0.8 }]}
+          onPress={async () => {
+            await setEngineUrl(engineUrl)
+            setStatus(`Engine set to ${getEngineUrl()}`)
+          }}
+        >
+          <Text style={styles.primaryText}>Save engine URL</Text>
+        </Pressable>
+      </View>
 
       <View style={styles.card}>
         <Text style={styles.title}>Screen scam calls</Text>
@@ -155,6 +185,16 @@ const styles = StyleSheet.create({
   note: { color: colors.muted, fontSize: 13, lineHeight: 19 },
   warn: { color: colors.warn, fontSize: 13, lineHeight: 19 },
   feature: { borderColor: colors.accent },
+  input: {
+    backgroundColor: colors.bg,
+    borderColor: colors.cardEdge,
+    borderWidth: 1,
+    borderRadius: 10,
+    color: colors.text,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+  },
   primary: {
     backgroundColor: colors.accent,
     borderRadius: 10,

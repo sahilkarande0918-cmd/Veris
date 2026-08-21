@@ -55,12 +55,50 @@ export interface ChainStatus {
   signing_key: string
 }
 
+import AsyncStorage from "@react-native-async-storage/async-storage"
+
 /**
- * Over USB, run `adb reverse tcp:8000 tcp:8000` so the phone's localhost
- * reaches the engine on your machine. Override with EXPO_PUBLIC_VERIS_API
- * (e.g. your LAN IP) when running over Wi-Fi instead.
+ * The engine the app talks to. Resolution order:
+ *   1. a URL the user saved in the app (Protection -> Engine URL)
+ *   2. the value baked in at build time (EXPO_PUBLIC_VERIS_API)
+ *   3. a localhost default (USB dev)
+ *
+ * Making it user-settable means one APK works against any engine -- a laptop
+ * on the same Wi-Fi, or a public cloud URL -- with no rebuild. If the engine
+ * is unreachable, callers already fall back to on-device triage.
  */
-export const API_BASE = process.env.EXPO_PUBLIC_VERIS_API ?? "http://127.0.0.1:8000"
+const BUILT_IN_BASE = process.env.EXPO_PUBLIC_VERIS_API ?? "http://127.0.0.1:8000"
+const ENGINE_URL_KEY = "veris.engineUrl"
+
+let currentBase = BUILT_IN_BASE
+export const API_BASE = BUILT_IN_BASE // kept for the Home footer display
+
+/** Load any saved engine URL at app start. Call once. */
+export async function loadEngineUrl(): Promise<string> {
+  try {
+    const saved = await AsyncStorage.getItem(ENGINE_URL_KEY)
+    if (saved && saved.trim()) currentBase = saved.trim()
+  } catch {
+    // storage unavailable -> stick with the built-in default
+  }
+  return currentBase
+}
+
+export function getEngineUrl(): string {
+  return currentBase
+}
+
+/** Save a user-entered engine URL and use it immediately. */
+export async function setEngineUrl(url: string): Promise<void> {
+  const cleaned = url.trim().replace(/\/+$/, "")
+  currentBase = cleaned || BUILT_IN_BASE
+  try {
+    if (cleaned) await AsyncStorage.setItem(ENGINE_URL_KEY, cleaned)
+    else await AsyncStorage.removeItem(ENGINE_URL_KEY)
+  } catch {
+    // best effort; the in-memory value still applies for this session
+  }
+}
 
 const TIMEOUT_MS = 20000
 
@@ -73,7 +111,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const isForm = typeof FormData !== "undefined" && init?.body instanceof FormData
     const headers: Record<string, string> = isForm ? {} : { "Content-Type": "application/json" }
     Object.assign(headers, (init?.headers as Record<string, string>) ?? {})
-    const response = await fetch(`${API_BASE}${path}`, {
+    const response = await fetch(`${currentBase}${path}`, {
       ...init,
       signal: controller.signal,
       headers,
@@ -86,7 +124,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
       throw new Error(
-        `The verdict engine did not respond at ${API_BASE}. Is it running, and did you run 'adb reverse tcp:8000 tcp:8000'?`,
+        `The verdict engine did not respond at ${currentBase}. Set the Engine URL in Protection settings, or check it is running.`,
       )
     }
     throw error

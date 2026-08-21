@@ -1,7 +1,9 @@
+import { useEffect } from "react"
 import { router, Stack } from "expo-router"
 import { StatusBar } from "expo-status-bar"
 import { ShareIntentProvider } from "expo-share-intent"
 
+import { loadEngineUrl } from "../lib/api"
 import { colors } from "../lib/theme"
 
 /**
@@ -12,6 +14,11 @@ import { colors } from "../lib/theme"
  * regenerates.
  */
 export default function RootLayout() {
+  // Load any saved engine URL before the first API call.
+  useEffect(() => {
+    void loadEngineUrl()
+  }, [])
+
   return (
     <ShareIntentProvider
       options={{
