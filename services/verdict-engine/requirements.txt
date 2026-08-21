@@ -12,3 +12,5 @@ python-multipart>=0.0.9  # APK upload on /check/apk
 
 # test-only
 pytest>=8.3
+opencv-python-headless>=4.9  # offline QR decoding (cv2.QRCodeDetector)
+qrcode>=7.4               # QR generation, tests + scripts/make_qr.py

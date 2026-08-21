@@ -46,16 +46,12 @@ def health() -> dict[str, str]:
     }
 
 
-@app.post("/check", response_model=VerdictResult)
-def check(request: CheckRequest) -> VerdictResult:
-    """Classify the input, gather evidence, apply the rules, return the lot.
-
-    The response carries every signal with its own {source, value,
-    observed_at} citation and the exact rules that fired, so the verdict can
-    be audited without trusting this service.
-    """
+def _run_check(text: str, explain_it: bool, language: str, record: bool) -> VerdictResult:
+    """The core pipeline: classify -> evidence -> rules -> prose. Shared by
+    every intake path (paste, share, QR) so they all get the identical, cited
+    verdict."""
     try:
-        subject = classify(request.input)
+        subject = classify(text)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
@@ -78,12 +74,43 @@ def check(request: CheckRequest) -> VerdictResult:
 
     # The verdict is fixed by this point. The explainer is handed a finished
     # result and can only attach prose to it.
-    if request.explain:
-        result.explanation = explain(result, request.language)
+    if explain_it:
+        result.explanation = explain(result, language)
 
-    if request.record:
+    if record:
         append("check", result.model_dump())
     return result
+
+
+@app.post("/check", response_model=VerdictResult)
+def check(request: CheckRequest) -> VerdictResult:
+    """Classify the input, gather evidence, apply the rules, return the lot.
+
+    The response carries every signal with its own {source, value,
+    observed_at} citation and the exact rules that fired, so the verdict can
+    be audited without trusting this service.
+    """
+    return _run_check(request.input, request.explain, request.language, request.record)
+
+
+@app.post("/check/qr", response_model=VerdictResult)
+async def check_qr(
+    file: UploadFile = File(...),
+    language: str = "mr",
+) -> VerdictResult:
+    """Decode a QR image, then judge what it actually contains.
+
+    QR-code scams (a sticker over a merchant's real code, a "scan for refund"
+    image) hide a UPI payee or a link. Veris decodes it and runs the SAME
+    engine -- for a UPI QR it checks the payee address that actually receives
+    the money, not the merchant name the QR claims.
+    """
+    from .qr import decode_qr, subject_from_qr
+
+    qr_text = decode_qr(await file.read())
+    if not qr_text:
+        raise HTTPException(status_code=422, detail="no QR code found in the image")
+    return _run_check(subject_from_qr(qr_text), True, language, True)
 
 
 @app.get("/ledger/events")
