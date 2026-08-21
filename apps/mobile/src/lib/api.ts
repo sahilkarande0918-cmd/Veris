@@ -68,10 +68,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
   try {
+    // FormData sets its own multipart Content-Type (with a boundary); forcing
+    // JSON would corrupt the upload. JSON callers are unchanged.
+    const isForm = typeof FormData !== "undefined" && init?.body instanceof FormData
+    const headers: Record<string, string> = isForm ? {} : { "Content-Type": "application/json" }
+    Object.assign(headers, (init?.headers as Record<string, string>) ?? {})
     const response = await fetch(`${API_BASE}${path}`, {
       ...init,
       signal: controller.signal,
-      headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+      headers,
     })
     if (!response.ok) {
       const body = await response.text()
@@ -98,6 +103,21 @@ export function check(
     method: "POST",
     body: JSON.stringify({ input, language, explain: true, record: true }),
   })
+}
+
+/**
+ * Check a QR payload the phone's camera already decoded.
+ *
+ * Sends the decoded text to /check/qr as a form field, so the UPI-payee
+ * extraction and the whole verdict/evidence flow stay server-side and
+ * identical to every other intake path.
+ */
+export function checkQr(payload: string, language: "mr" | "hi" = "mr"): Promise<VerdictResult> {
+  const body = new FormData()
+  body.append("text", payload)
+  body.append("language", language)
+  // No Content-Type header: fetch sets the multipart boundary itself.
+  return request<VerdictResult>("/check/qr", { method: "POST", body, headers: {} })
 }
 
 export function ledgerEvents(): Promise<{ events: LedgerEvent[] }> {

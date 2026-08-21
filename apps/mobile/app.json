@@ -54,7 +54,13 @@
       ],
       "./plugins/withCallScreening",
       "./plugins/withNotificationGuard",
-      "./plugins/withReleaseSigning"
+      "./plugins/withReleaseSigning",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Veris uses the camera only to read a QR code you point it at. Nothing is recorded or uploaded."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

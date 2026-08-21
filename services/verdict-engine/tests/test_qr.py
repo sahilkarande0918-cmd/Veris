@@ -52,6 +52,22 @@ def test_a_clean_upi_qr_is_not_flagged():
     assert body["verdict"] == "safe"
 
 
+def test_decoded_text_path_from_the_phone_camera():
+    """The phone decodes the QR on-device and sends the payload as text."""
+    response = client.post(
+        "/check/qr",
+        data={"text": "upi://pay?pa=kycupdate2026@ybl&pn=Refund&am=4999", "language": "mr"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["subject"]["value"] == "kycupdate2026@ybl"
+    assert body["verdict"] == "likely_scam"
+
+
+def test_qr_with_neither_file_nor_text_is_422():
+    assert client.post("/check/qr").status_code == 422
+
+
 def test_an_image_with_no_qr_is_a_clean_422():
     # A 1x1 PNG: valid image, no QR. Should be a clear error, not a crash.
     png = qr_png("x")[:20] + b"junk"

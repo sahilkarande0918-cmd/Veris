@@ -10,7 +10,7 @@ import json
 import tempfile
 from pathlib import Path
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 from verdict import Subject, VerdictResult
 
@@ -95,21 +95,26 @@ def check(request: CheckRequest) -> VerdictResult:
 
 @app.post("/check/qr", response_model=VerdictResult)
 async def check_qr(
-    file: UploadFile = File(...),
-    language: str = "mr",
+    file: UploadFile | None = File(default=None),
+    text: str | None = Form(default=None),
+    language: str = Form(default="mr"),
 ) -> VerdictResult:
-    """Decode a QR image, then judge what it actually contains.
+    """Judge what a QR actually contains, then run the SAME engine on it.
 
-    QR-code scams (a sticker over a merchant's real code, a "scan for refund"
-    image) hide a UPI payee or a link. Veris decodes it and runs the SAME
-    engine -- for a UPI QR it checks the payee address that actually receives
-    the money, not the merchant name the QR claims.
+    Two ways in, one pipeline:
+    - `text`: the phone's camera already decoded the QR on-device (the common
+      path); send the payload string.
+    - `file`: an image to decode server-side (used by scripts and tests).
+
+    Either way, a UPI QR is judged on the payee address that receives the money
+    (`pa`), not the merchant name it claims (`pn`), which an attacker sets
+    freely.
     """
     from .qr import decode_qr, subject_from_qr
 
-    qr_text = decode_qr(await file.read())
+    qr_text = text.strip() if text else (decode_qr(await file.read()) if file else None)
     if not qr_text:
-        raise HTTPException(status_code=422, detail="no QR code found in the image")
+        raise HTTPException(status_code=422, detail="no QR payload found")
     return _run_check(subject_from_qr(qr_text), True, language, True)
 
 

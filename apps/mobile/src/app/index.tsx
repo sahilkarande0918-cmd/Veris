@@ -137,6 +137,10 @@ export default function Home() {
         </Text>
       </View>
 
+      <Pressable style={styles.secondary} onPress={() => router.push("/scan" as "/")}>
+        <Text style={styles.secondaryText}>Scan a QR code</Text>
+      </Pressable>
+
       <Pressable style={styles.secondary} onPress={() => router.push("/protect")}>
         <Text style={styles.secondaryText}>Protection settings</Text>
       </Pressable>

@@ -35,6 +35,7 @@ export default function RootLayout() {
         <Stack.Screen name="report" options={{ title: "Report" }} />
         <Stack.Screen name="history" options={{ title: "Ledger" }} />
         <Stack.Screen name="protect" options={{ title: "Protection" }} />
+        <Stack.Screen name="scan" options={{ title: "Scan QR" }} />
       </Stack>
     </ShareIntentProvider>
   )
