@@ -17,6 +17,7 @@ import { colors } from "../lib/theme"
 import { setLastResult } from "../lib/store"
 import { triageOnDevice } from "../lib/ondevice"
 import { checkForUpdate, type UpdateInfo } from "../lib/updates"
+import { firstCandidate, textFromImage } from "../lib/ocr"
 
 export default function Home() {
   const [input, setInput] = useState("")
@@ -48,6 +49,17 @@ export default function Home() {
   // immediately -- the user should not have to press anything.
   useEffect(() => {
     if (!hasShareIntent) return
+
+    // A shared image (a scam screenshot) -> read its text on-device, then
+    // check the link / UPI id / number inside it with the same engine.
+    const image = shareIntent.files?.find((f) => f.mimeType?.startsWith("image/"))
+    if (image?.path && image.path !== lastHandled.current) {
+      lastHandled.current = image.path
+      void handleScreenshot(image.path)
+      resetShareIntent()
+      return
+    }
+
     const shared = shareIntent.webUrl ?? shareIntent.text
     if (shared && shared !== lastHandled.current) {
       lastHandled.current = shared
@@ -57,6 +69,24 @@ export default function Home() {
     resetShareIntent()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasShareIntent])
+
+  async function handleScreenshot(uri: string) {
+    setBusy(true)
+    setError(null)
+    try {
+      const candidate = firstCandidate(await textFromImage(uri))
+      if (!candidate) {
+        setError("No link, UPI id, or phone number was found in that image.")
+        return
+      }
+      setInput(candidate)
+      await run(candidate)
+    } catch {
+      setError("Could not read text from that image.")
+    } finally {
+      setBusy(false)
+    }
+  }
 
   async function run(raw: string) {
     const value = raw.trim()
