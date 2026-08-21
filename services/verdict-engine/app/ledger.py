@@ -121,11 +121,15 @@ def demo_tamper() -> dict:
         return {"tampered": False, "detail": "need at least 2 records; check something first"}
     # Edit a middle record so the break is visibly not at the head.
     target = records[len(records) // 2]
-    payload = target.get("payload", {})
-    payload["verdict"] = "safe"
-    payload["score"] = 0
+    payload = target.setdefault("payload", {})
+    # Flip the verdict to something it is NOT, so the content always changes even
+    # if this record was already "safe" -- otherwise the hash would still match
+    # and nothing would be detected.
+    payload["verdict"] = "likely_scam" if payload.get("verdict") == "safe" else "safe"
+    payload["score"] = 0 if payload["verdict"] == "safe" else 99
+    payload["_demo_tampered"] = True  # guarantees the bytes differ regardless
     _write_all(records)  # hashes intentionally NOT recomputed
-    return {"tampered": True, "seq": target.get("seq"), "detail": "changed a stored verdict to 'safe' without re-signing"}
+    return {"tampered": True, "seq": target.get("seq"), "detail": f"changed record #{target.get('seq')}'s stored verdict without re-signing"}
 
 
 def demo_rebuild() -> dict:

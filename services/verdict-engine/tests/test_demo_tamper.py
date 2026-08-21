@@ -40,6 +40,17 @@ def test_tamper_breaks_the_chain_and_rebuild_heals_it(monkeypatch):
     assert verify()["ok"] is True  # repeatable for the next demo run
 
 
+def test_tamper_breaks_even_a_record_that_is_already_safe(monkeypatch):
+    """Regression: if the edited record already read 'safe', a naive tamper that
+    just sets verdict='safe' changes nothing and the chain stays valid."""
+    monkeypatch.setenv("VERIS_DEMO", "1")
+    for i in range(3):
+        append("check", {"subject": {"value": f"http://ok{i}.test"}, "verdict": "safe", "score": 0})
+    assert verify()["ok"] is True
+    client.post("/ledger/dev/tamper")
+    assert verify()["ok"] is False  # must be detected despite the record being 'safe'
+
+
 def test_tamper_needs_at_least_two_records(monkeypatch):
     monkeypatch.setenv("VERIS_DEMO", "1")
     append("check", {"subject": {"value": "http://only.test"}, "verdict": "safe"})
