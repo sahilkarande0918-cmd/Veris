@@ -5,6 +5,8 @@ this file -- the explanation layer arrives in Phase 2 and will only ever be
 handed the evidence produced here.
 """
 
+import hashlib
+import json
 import tempfile
 from pathlib import Path
 
@@ -98,6 +100,26 @@ def ledger_verify() -> dict:
     can call it and see whether the log has been edited since it was written.
     """
     return verify()
+
+
+_RULES_PATH = Path(__file__).resolve().parents[3] / "fixtures" / "ondevice_rules.json"
+
+
+@app.get("/intel/rules")
+def intel_rules() -> dict:
+    """The national on-device rules file, plus a version hash.
+
+    This is the distribution half of the scalability design (docs/SCALABILITY.md):
+    the phone caches this and re-checks the `version` to know when a newer set of
+    reported ids/hosts is available -- so a scam id reported through 1930 today
+    can protect every phone tomorrow, with no app update and no model to run.
+
+    The rules are the SAME deterministic checks the phone already ships; only a
+    few kilobytes move, and no citizen data is collected to produce them.
+    """
+    raw = _RULES_PATH.read_bytes()
+    version = hashlib.sha256(raw).hexdigest()[:16]
+    return {"version": version, "rules": json.loads(raw)}
 
 
 @app.post("/ledger/report")
