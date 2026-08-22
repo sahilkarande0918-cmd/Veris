@@ -47,9 +47,9 @@ export default function Protect() {
       <View style={[styles.card, styles.feature]}>
         <Text style={styles.title}>Engine URL</Text>
         <Text style={styles.body}>
-          Where the full verdict engine runs. Use your laptop's address on the
-          same Wi-Fi (http://192.168.x.x:8010), or a hosted URL to use it on any
-          network. The on-device checks work even if this is unreachable.
+          Where the full verdict engine runs. Must be an HTTPS address (a hosted
+          URL) — plain HTTP is blocked for your safety. The on-device checks
+          work even if this is unreachable.
         </Text>
         <TextInput
           style={styles.input}
@@ -58,7 +58,7 @@ export default function Protect() {
           autoCapitalize="none"
           autoCorrect={false}
           keyboardType="url"
-          placeholder="http://192.168.1.7:8010"
+          placeholder="https://your-engine.onrender.com"
           placeholderTextColor={colors.muted}
         />
         <Pressable

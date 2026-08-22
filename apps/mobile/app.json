@@ -9,6 +9,7 @@
     "userInterfaceStyle": "automatic",
     "android": {
       "package": "in.veris.app",
+      "allowBackup": false,
       "adaptiveIcon": {
         "backgroundColor": "#0B1220",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -57,10 +58,21 @@
       "./plugins/withCallScreening",
       "./plugins/withNotificationGuard",
       "./plugins/withReleaseSigning",
+      "./plugins/withHttpsOnly",
       [
         "expo-camera",
         {
           "cameraPermission": "Veris uses the camera only to read a QR code you point it at. Nothing is recorded or uploaded."
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableProguardInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "extraProguardRules": "-keep class in.veris.app.** { *; }\n-keep class expo.modules.** { *; }"
+          }
         }
       ]
     ],

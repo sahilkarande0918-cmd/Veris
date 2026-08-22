@@ -86,9 +86,62 @@ needs a reachable engine:
   connect by the user (I cannot auth their host account). Cold-starts after
   idle.
 
+## Security hardening (Tier 1 applied 2026-08-22)
+
+Loop-engineered pass. **No verdict-engine logic, demo flow, or working feature
+changed.** Verdict is still deterministic; the LLM still only explains
+(`rules.py`/`explain.py`/`checks.py`/`enrich.py` untouched — verified by diff).
+
+**Applied (Tier 1):**
+- **No client secrets.** Grepped source, `app.json`, `.env`, and the built
+  release bundle — zero API keys in the client. Architecture already
+  client→backend→third-party; Groq/VirusTotal/Safe Browsing keys are
+  backend-only. MobSF confirms 0 secrets.
+- **HTTPS-only (strict, hosted-only).** `usesCleartextTraffic=false` +
+  `network_security_config.xml` forbidding cleartext to **all** hosts, via
+  `plugins/withHttpsOnly.js` (survives prebuild) and the committed manifest.
+  MobSF reports network config as **secure**. Consequence (accepted): the LAN
+  `http://<laptop-ip>:8010` demo path no longer connects — the engine must be a
+  hosted **HTTPS** URL; unreachable → on-device triage fallback. Protection
+  screen hint + `.env` placeholder updated to https.
+- **Backend input validation / DoS limits** (`app/main.py`, `app/packet.py`):
+  input length cap, `language` restricted to `mr|hi|en`, upload size caps
+  (10 MB image / 200 MB APK) via streaming read-cap, image content-type check,
+  global Content-Length guard, complaint field/list caps. No shell/SQL anywhere
+  (ledger is JSONL) — verified. New `tests/test_input_limits.py`; **113 tests
+  pass**, all offline.
+- **Least-privilege permissions.** Built APK declares only CAMERA, INTERNET,
+  POST_NOTIFICATIONS (+ Expo ACCESS_NETWORK_STATE, AndroidX internal
+  signature-perm). No SMS/CALL_LOG/RECEIVE_SMS/CONTACTS/RECORD_AUDIO.
+- **`allowBackup=false`** (was true) — closes adb-backup data extraction.
+- **`taskAffinity=""`** on application + MainActivity — task-hijacking mitigation.
+- **R8/ProGuard on** (`minifyEnabled` + `shrinkResources`): APK 50 MB → 39 MB,
+  70 MB mapping.txt confirms obfuscation. Durable across prebuild via
+  `expo-build-properties` (app.json); keep-rules for `in.veris.app.**` +
+  `expo.modules.**`.
+- **MobSF v4.5.2 static scan** of the hardened release APK. Score **49/100**;
+  report saved as `SECURITY_MobSF_report.json` + `.md`. All Tier-1-class
+  findings (secrets, weak network config, dangerous perms, insecure storage)
+  fixed. Remaining 3 HIGHs are accepted-with-rationale: minSdk=24 (Expo default,
+  compat), StrandHogg 1.0/2.0 (keyed on `launchMode=singleTask`, which
+  share-intent requires; `taskAffinity=""` mitigates the vector). See the report.
+
+**Roadmap (Tier 2 / Tier 3 — not yet applied):**
+- Tier 2: per-device API token + per-endpoint rate limiting; encrypt ledger/
+  reports at rest (EncryptedSharedPreferences / SQLCipher + Keystore); cert
+  pinning app→backend (MobSF flags system-CA trust — this is the fix, gated
+  behind a flag so a bad pin can't break the demo).
+- Tier 3: `FLAG_SECURE` on evidence/report screens; Play Integrity root/tamper
+  detection (warn-only, must not block rooted/emulator demo device); deeper
+  RASP/attestation (note only).
+- Optional: raise `minSdkVersion` to 26/28 to clear the minSdk HIGH.
+
+**Note:** on-disk `data/ledger.jsonl` is currently broken at seq 7 (left from a
+prior tamper demo; gitignored local data, not caused by this pass). Re-seal with
+the app's "Restore" / `POST /ledger/dev/rebuild` (VERIS_DEMO=1) before demoing.
+
 ## Known cleanups / to-do
-- **RECORD_AUDIO** permission crept into the release manifest from expo-camera;
-  strip via `android.blockedPermissions` in app.json (we only scan QR).
+- ~~**RECORD_AUDIO** permission~~ — DONE (stripped; not in the built manifest).
 - Debug builds need Metro (laptop) to launch — expected; use the RELEASE APK.
 - Groq key not set on any cloud engine yet (would enable LLM explanations
   server-side; template fallback works without it).

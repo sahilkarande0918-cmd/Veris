@@ -11,6 +11,7 @@ behalf would be wrong even if there were. The user decides, always.
 """
 
 from datetime import datetime, timezone
+from typing import Annotated
 
 from pydantic import BaseModel, Field
 
@@ -22,18 +23,18 @@ class ComplaintDetails(BaseModel):
     """What NCRP's financial-fraud form asks for. Everything is optional --
     a victim reporting within the golden hour will not have it all."""
 
-    incident_datetime: str | None = None  # ISO-8601, when it happened
-    amount_lost: float | None = None  # INR
-    payment_mode: str | None = None  # UPI / IMPS / NEFT / card / wallet
-    suspect_upi_id: str | None = None
-    suspect_account_number: str | None = None
-    suspect_bank_or_wallet: str | None = None
-    transaction_reference: str | None = None  # UTR / txn id
-    victim_bank_or_wallet: str | None = None
-    suspect_phone: str | None = None
-    suspect_urls: list[str] = Field(default_factory=list)
-    screenshot_sha256: list[str] = Field(default_factory=list)
-    description: str | None = None
+    incident_datetime: str | None = Field(default=None, max_length=64)  # ISO-8601
+    amount_lost: float | None = Field(default=None, ge=0)  # INR
+    payment_mode: str | None = Field(default=None, max_length=64)  # UPI / IMPS / ...
+    suspect_upi_id: str | None = Field(default=None, max_length=256)
+    suspect_account_number: str | None = Field(default=None, max_length=64)
+    suspect_bank_or_wallet: str | None = Field(default=None, max_length=128)
+    transaction_reference: str | None = Field(default=None, max_length=128)  # UTR / txn id
+    victim_bank_or_wallet: str | None = Field(default=None, max_length=128)
+    suspect_phone: str | None = Field(default=None, max_length=32)
+    suspect_urls: list[Annotated[str, Field(max_length=2048)]] = Field(default_factory=list, max_length=50)
+    screenshot_sha256: list[Annotated[str, Field(max_length=128)]] = Field(default_factory=list, max_length=50)
+    description: str | None = Field(default=None, max_length=5000)
 
 
 ATTRIBUTION = [

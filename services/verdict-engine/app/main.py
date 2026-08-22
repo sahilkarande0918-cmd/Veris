@@ -9,9 +9,11 @@ import hashlib
 import json
 import tempfile
 from pathlib import Path
+from typing import Annotated, Literal
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from pydantic import BaseModel
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
 from verdict import Subject, VerdictResult
 
 from . import ENGINE_VERSION
@@ -26,13 +28,50 @@ from .subject import classify
 
 app = FastAPI(title="Veris Verdict Engine", version=ENGINE_VERSION)
 
+# --- Input limits (DoS hardening). Sized to the real inputs: an SMS/URL is
+# tiny, a QR screenshot small, an APK can be large. ---
+MAX_INPUT_CHARS = 4096  # a shared SMS/link; anything larger is not a subject
+MAX_QR_TEXT_CHARS = 8192  # a decoded QR payload (can be a long URL)
+MAX_IMAGE_BYTES = 10 * 1024 * 1024  # QR screenshot
+MAX_APK_BYTES = 200 * 1024 * 1024  # a large real APK
+MAX_BODY_BYTES = MAX_APK_BYTES + 1024 * 1024  # global request-body ceiling
+
+# Output languages the explainer actually supports (see explain.py). Rejecting
+# anything else at the boundary keeps unvalidated strings out of the pipeline.
+Language = Literal["mr", "hi", "en"]
+
+
+@app.middleware("http")
+async def _limit_body_size(request: Request, call_next):
+    """Reject oversized requests before they are buffered into memory.
+
+    ponytail: a Content-Length guard. A chunked upload without the header slips
+    past this, but the per-endpoint read caps below still bound memory use.
+    """
+    length = request.headers.get("content-length")
+    if length and length.isdigit() and int(length) > MAX_BODY_BYTES:
+        return JSONResponse({"detail": "request body too large"}, status_code=413)
+    return await call_next(request)
+
+
+async def _read_capped(file: UploadFile, cap: int, what: str) -> bytes:
+    """Read an upload, refusing anything over `cap` bytes without loading it all.
+
+    read(cap + 1) pulls at most one byte past the limit, so an oversized file is
+    rejected having buffered only cap+1 bytes, never its full size.
+    """
+    data = await file.read(cap + 1)
+    if len(data) > cap:
+        raise HTTPException(status_code=413, detail=f"{what} exceeds {cap // (1024 * 1024)} MB limit")
+    return data
+
 
 class CheckRequest(BaseModel):
     """Raw text from the share sheet, paste box, or scanner."""
 
-    input: str
+    input: str = Field(min_length=1, max_length=MAX_INPUT_CHARS)
     explain: bool = True
-    language: str = "mr"  # regional output: "mr" (Marathi) or "hi" (Hindi)
+    language: Language = "mr"  # regional output: "mr" (Marathi) or "hi" (Hindi)
     record: bool = True  # append this check to the tamper-evident ledger
 
 
@@ -96,8 +135,8 @@ def check(request: CheckRequest) -> VerdictResult:
 @app.post("/check/qr", response_model=VerdictResult)
 async def check_qr(
     file: UploadFile | None = File(default=None),
-    text: str | None = Form(default=None),
-    language: str = Form(default="mr"),
+    text: Annotated[str | None, Form(max_length=MAX_QR_TEXT_CHARS)] = None,
+    language: Annotated[Language, Form()] = "mr",
 ) -> VerdictResult:
     """Judge what a QR actually contains, then run the SAME engine on it.
 
@@ -112,7 +151,14 @@ async def check_qr(
     """
     from .qr import decode_qr, subject_from_qr
 
-    qr_text = text.strip() if text else (decode_qr(await file.read()) if file else None)
+    if text:
+        qr_text = text.strip()
+    elif file is not None:
+        if file.content_type and not file.content_type.startswith("image/"):
+            raise HTTPException(status_code=422, detail="expected an image file")
+        qr_text = decode_qr(await _read_capped(file, MAX_IMAGE_BYTES, "image"))
+    else:
+        qr_text = None
     if not qr_text:
         raise HTTPException(status_code=422, detail="no QR payload found")
     return _run_check(subject_from_qr(qr_text), True, language, True)
@@ -193,7 +239,7 @@ def ledger_report(complaint: ComplaintDetails) -> dict:
 
 
 @app.post("/check/apk", response_model=VerdictResult)
-async def check_apk(file: UploadFile = File(...), language: str = "mr") -> VerdictResult:
+async def check_apk(file: UploadFile = File(...), language: Language = "mr") -> VerdictResult:
     """Static analysis of an uploaded APK. The app is never installed or run.
 
     Permissions are facts read from the manifest, so the same deterministic
@@ -202,9 +248,10 @@ async def check_apk(file: UploadFile = File(...), language: str = "mr") -> Verdi
     if not file.filename or not file.filename.lower().endswith(".apk"):
         raise HTTPException(status_code=422, detail="expected a .apk file")
 
+    payload = await _read_capped(file, MAX_APK_BYTES, "APK")
     with tempfile.TemporaryDirectory() as workdir:
         target = Path(workdir) / "upload.apk"
-        target.write_bytes(await file.read())
+        target.write_bytes(payload)
         signals, meta = analyze_apk(target)
 
     verdict, score, rules_fired = decide(signals)
