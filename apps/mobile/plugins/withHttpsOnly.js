@@ -19,6 +19,12 @@
  * Setting an empty taskAffinity on the application stops a malicious app from
  * planting an activity on our task's back stack.
  *
+ * Certificate pinning (Tier 2 #9), OFF by default. When app.json sets
+ * extra.enginePinHost + extra.enginePins, the generated network security config
+ * pins that host to the given SHA-256 public-key hashes. Empty => no pinning, so
+ * a wrong pin can never brick the demo unless someone deliberately turns it on.
+ * See docs/CERT_PINNING.md.
+ *
  * Done as a config plugin so it survives `expo prebuild`, matching the other
  * plugins in this folder.
  */
@@ -27,16 +33,34 @@ const { withAndroidManifest, withDangerousMod, AndroidConfig } = require("expo/c
 const fs = require("fs")
 const path = require("path")
 
-const NETWORK_SECURITY_CONFIG = `<?xml version="1.0" encoding="utf-8"?>
+// Certificate pinning is OFF by default (empty pin => no pinning), because a
+// wrong pin bricks every connection. Enable it by setting, in app.json:
+//   "extra": { "enginePinHost": "your-engine.example.com",
+//              "enginePins": ["base64sha256==", "backupbase64sha256=="] }
+// then `npx expo prebuild --clean -p android`, rebuild, and TEST ON DEVICE.
+// See docs/CERT_PINNING.md for how to compute the pins.
+function buildNetworkSecurityConfig(host, pins) {
+  const pinBlock =
+    host && Array.isArray(pins) && pins.length
+      ? `
+    <domain-config>
+        <domain includeSubdomains="true">${host}</domain>
+        <pin-set>
+${pins.map((p) => `            <pin digest="SHA-256">${p}</pin>`).join("\n")}
+        </pin-set>
+    </domain-config>`
+      : ""
+  return `<?xml version="1.0" encoding="utf-8"?>
 <!-- Veris: TLS only. Cleartext HTTP is refused to every host. -->
 <network-security-config>
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
-    </base-config>
+    </base-config>${pinBlock}
 </network-security-config>
 `
+}
 
 function withManifestAttrs(config) {
   return withAndroidManifest(config, (cfg) => {
@@ -53,12 +77,15 @@ function withManifestAttrs(config) {
 }
 
 function withNetworkSecurityConfigFile(config) {
+  const host = config.extra && config.extra.enginePinHost
+  const pins = config.extra && config.extra.enginePins
+  const xml = buildNetworkSecurityConfig(host, pins)
   return withDangerousMod(config, [
     "android",
     (cfg) => {
       const dir = path.join(cfg.modRequest.platformProjectRoot, "app", "src", "main", "res", "xml")
       fs.mkdirSync(dir, { recursive: true })
-      fs.writeFileSync(path.join(dir, "network_security_config.xml"), NETWORK_SECURITY_CONFIG)
+      fs.writeFileSync(path.join(dir, "network_security_config.xml"), xml)
       return cfg
     },
   ])

@@ -74,7 +74,8 @@
             "extraProguardRules": "-keep class in.veris.app.** { *; }\n-keep class expo.modules.** { *; }"
           }
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,

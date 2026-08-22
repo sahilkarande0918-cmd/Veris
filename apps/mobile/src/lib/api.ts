@@ -55,7 +55,7 @@ export interface ChainStatus {
   signing_key: string
 }
 
-import AsyncStorage from "@react-native-async-storage/async-storage"
+import * as SecureStore from "expo-secure-store"
 
 /**
  * The engine the app talks to. Resolution order:
@@ -76,7 +76,7 @@ export const API_BASE = BUILT_IN_BASE // kept for the Home footer display
 /** Load any saved engine URL at app start. Call once. */
 export async function loadEngineUrl(): Promise<string> {
   try {
-    const saved = await AsyncStorage.getItem(ENGINE_URL_KEY)
+    const saved = await SecureStore.getItemAsync(ENGINE_URL_KEY)
     if (saved && saved.trim()) currentBase = saved.trim()
   } catch {
     // storage unavailable -> stick with the built-in default
@@ -93,8 +93,8 @@ export async function setEngineUrl(url: string): Promise<void> {
   const cleaned = url.trim().replace(/\/+$/, "")
   currentBase = cleaned || BUILT_IN_BASE
   try {
-    if (cleaned) await AsyncStorage.setItem(ENGINE_URL_KEY, cleaned)
-    else await AsyncStorage.removeItem(ENGINE_URL_KEY)
+    if (cleaned) await SecureStore.setItemAsync(ENGINE_URL_KEY, cleaned)
+    else await SecureStore.deleteItemAsync(ENGINE_URL_KEY)
   } catch {
     // best effort; the in-memory value still applies for this session
   }
@@ -107,6 +107,8 @@ const TIMEOUT_MS = 20000
 // URL and attach it as a bearer token. If the engine has no /auth/device (older
 // build) or auth is off, registration just no-ops and calls proceed tokenless.
 const DEVICE_ID_KEY = "veris.deviceId"
+const TOKEN_KEY = "veris.token"
+const TOKEN_BASE_KEY = "veris.tokenBase"
 let deviceId: string | null = null
 const tokenByBase: Record<string, string> = {}
 
@@ -117,10 +119,10 @@ function freshId(): string {
 async function getDeviceId(): Promise<string> {
   if (deviceId) return deviceId
   try {
-    let id = await AsyncStorage.getItem(DEVICE_ID_KEY)
+    let id = await SecureStore.getItemAsync(DEVICE_ID_KEY)
     if (!id) {
       id = freshId()
-      await AsyncStorage.setItem(DEVICE_ID_KEY, id)
+      await SecureStore.setItemAsync(DEVICE_ID_KEY, id)
     }
     deviceId = id
   } catch {
@@ -131,6 +133,17 @@ async function getDeviceId(): Promise<string> {
 
 async function ensureToken(base: string): Promise<string | null> {
   if (tokenByBase[base]) return tokenByBase[base]
+  // Reuse a token persisted (Keystore-backed) for this same engine across launches.
+  try {
+    const savedBase = await SecureStore.getItemAsync(TOKEN_BASE_KEY)
+    const savedToken = await SecureStore.getItemAsync(TOKEN_KEY)
+    if (savedBase === base && savedToken) {
+      tokenByBase[base] = savedToken
+      return savedToken
+    }
+  } catch {
+    // secure storage unavailable -> fall through to (re)register
+  }
   try {
     const id = await getDeviceId()
     const res = await fetch(`${base}/auth/device`, {
@@ -142,6 +155,12 @@ async function ensureToken(base: string): Promise<string | null> {
     const data = await res.json()
     if (data?.token) {
       tokenByBase[base] = data.token
+      try {
+        await SecureStore.setItemAsync(TOKEN_KEY, data.token)
+        await SecureStore.setItemAsync(TOKEN_BASE_KEY, base)
+      } catch {
+        // non-fatal: the in-memory token still serves this session
+      }
       return data.token
     }
   } catch {
@@ -164,8 +183,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     if (token) headers["Authorization"] = `Bearer ${token}`
     let response = await fetch(`${base}${path}`, { ...init, signal: controller.signal, headers })
     if (response.status === 401 && token) {
-      // Token rejected (e.g. the engine's secret rotated): re-register once.
+      // Token rejected (e.g. the engine's secret rotated): drop it everywhere
+      // and re-register once.
       delete tokenByBase[base]
+      try {
+        await SecureStore.deleteItemAsync(TOKEN_KEY)
+        await SecureStore.deleteItemAsync(TOKEN_BASE_KEY)
+      } catch {
+        // ignore; in-memory delete above is enough to force re-registration
+      }
       const fresh = await ensureToken(base)
       if (fresh) {
         headers["Authorization"] = `Bearer ${fresh}`

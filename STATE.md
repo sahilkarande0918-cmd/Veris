@@ -86,11 +86,16 @@ needs a reachable engine:
   connect by the user (I cannot auth their host account). Cold-starts after
   idle.
 
-## Security hardening (Tier 1 applied 2026-08-22)
+## Security hardening (Tier 1 + Tier 2 applied 2026-08-22)
 
 Loop-engineered pass. **No verdict-engine logic, demo flow, or working feature
 changed.** Verdict is still deterministic; the LLM still only explains
 (`rules.py`/`explain.py`/`checks.py`/`enrich.py` untouched — verified by diff).
+
+**Durability proven:** `npx expo prebuild --clean -p android` reproduces the
+entire hardening posture from tracked config (config plugins + app.json +
+expo-build-properties) — HTTPS/NSC, taskAffinity, allowBackup, R8, proguard
+keeps, secure-store backup exclusion. `android/` stays gitignored.
 
 **Applied (Tier 1):**
 - **No client secrets.** Grepped source, `app.json`, `.env`, and the built
@@ -126,15 +131,29 @@ changed.** Verdict is still deterministic; the LLM still only explains
   compat), StrandHogg 1.0/2.0 (keyed on `launchMode=singleTask`, which
   share-intent requires; `taskAffinity=""` mitigates the vector). See the report.
 
-**Roadmap (Tier 2 / Tier 3 — not yet applied):**
-- Tier 2: per-device API token + per-endpoint rate limiting; encrypt ledger/
-  reports at rest (EncryptedSharedPreferences / SQLCipher + Keystore); cert
-  pinning app→backend (MobSF flags system-CA trust — this is the fix, gated
-  behind a flag so a bad pin can't break the demo).
-- Tier 3: `FLAG_SECURE` on evidence/report screens; Play Integrity root/tamper
-  detection (warn-only, must not block rooted/emulator demo device); deeper
-  RASP/attestation (note only).
-- Optional: raise `minSdkVersion` to 26/28 to clear the minSdk HIGH.
+**Applied (Tier 2):**
+- **#7 API auth + rate limiting** (`app/security.py`). Opt-in, offline-first:
+  unset `VERIS_AUTH_SECRET` → engine open (LAN/offline/tests); set it on a public
+  host → `/check` + `/ledger` require a per-device bearer token minted at
+  `/auth/device` (stateless HMAC, no DB). In-process sliding-window rate limiter,
+  per endpoint, keyed by device (or IP when open). Client (`api.ts`) registers +
+  attaches the token at the one `request()` choke point; 401 re-registers once.
+  118 backend tests pass.
+- **#8 at-rest, client Keystore** (`api.ts` → `expo-secure-store`). engineUrl,
+  deviceId, and the API token now live in the Android Keystore-backed store, not
+  plaintext AsyncStorage. The evidence **ledger is server-side and already
+  tamper-evident** — `/ledger/verify` + packet export are unchanged (app persists
+  nothing else sensitive: History is fetched live).
+- **#9 cert pinning, OFF by default** (`plugins/withHttpsOnly.js` +
+  `docs/CERT_PINNING.md`). Set `extra.enginePinHost` + `extra.enginePins` in
+  app.json → the NSC pins that host; empty → no pinning, so a bad pin can never
+  brick the demo unless deliberately enabled + device-tested.
+
+**Roadmap (Tier 3 — not yet applied):**
+- `FLAG_SECURE` on evidence/report screens (block screenshots/screen-record).
+- Play Integrity root/tamper detection (warn-only, must not block rooted/
+  emulator demo device); deeper RASP/attestation (note only).
+- Optional: raise `minSdkVersion` to 26/28 to clear the MobSF minSdk HIGH.
 
 **Note:** on-disk `data/ledger.jsonl` is currently broken at seq 7 (left from a
 prior tamper demo; gitignored local data, not caused by this pass). Re-seal with
