@@ -158,6 +158,21 @@ keeps, secure-store backup exclusion. `android/` stays gitignored.
   prebuild for a real deployment; then screenshots/recording of those two
   screens are blocked.
 
+**Backend penetration test (AI-assisted + manual, 2026-08-22):**
+Strix (`strix-agent`) was fully set up (Docker sandbox pulled, target reachable)
+but couldn't run — Anthropic key had no credits, Groq is incompatible with
+Strix's tool schemas. A manual pentest of the same scope (`SECURITY_Strix_report.md`)
+found and **fixed** two issues, verified by re-test + the suite:
+- **F1 SSRF** (enrich.py dialled attacker-chosen hosts via the TLS-cert fetch) —
+  fixed: `_safe_ip()` refuses non-global IPs and pins the connection (anti-rebinding).
+- **F2 rate-limit bypass** (unlimited `/auth/device` token minting reset the
+  quota) — fixed: per-IP ceiling across all endpoints.
+- **F3 ledger not access-scoped** (any device reads the full log) — accepted +
+  documented as single-tenant; a real fix would alter `/ledger/verify` + the demo.
+- Not exploitable: injection (no SQL/shell), mass-assignment (verdict computed
+  server-side — the core rule held under attack), file upload (capped, fixed temp
+  name). 123 backend tests pass.
+
 **Roadmap (Tier 3 — deliberately not implemented here):**
 - **#11 Play Integrity root/tamper detection.** Real Play Integrity needs a Play
   Console app + a Cloud project with the Integrity API + a backend endpoint that
