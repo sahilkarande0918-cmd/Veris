@@ -13,6 +13,7 @@ import {
 import { submitReport } from "../lib/api"
 import { getLastResult } from "../lib/store"
 import { colors } from "../lib/theme"
+import { useSecureScreen } from "../lib/secureScreen"
 
 /** NCRP asks for these. All optional: a victim in the golden hour will not have them all. */
 const FIELDS = [
@@ -27,6 +28,7 @@ const FIELDS = [
 ]
 
 export default function Report() {
+  useSecureScreen() // FLAG_SECURE on the complaint/report screen (off unless extra.secureScreens)
   const result = getLastResult()
   const [values, setValues] = useState<Record<string, string>>({
     suspect_upi_id: result?.subject.type === "upi" ? result.subject.value : "",

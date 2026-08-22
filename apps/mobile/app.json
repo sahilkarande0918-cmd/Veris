@@ -80,6 +80,9 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "secureScreens": false
     }
   }
 }

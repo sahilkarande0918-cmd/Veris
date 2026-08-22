@@ -149,10 +149,25 @@ keeps, secure-store backup exclusion. `android/` stays gitignored.
   app.json → the NSC pins that host; empty → no pinning, so a bad pin can never
   brick the demo unless deliberately enabled + device-tested.
 
-**Roadmap (Tier 3 — not yet applied):**
-- `FLAG_SECURE` on evidence/report screens (block screenshots/screen-record).
-- Play Integrity root/tamper detection (warn-only, must not block rooted/
-  emulator demo device); deeper RASP/attestation (note only).
+**Applied (Tier 3):**
+- **#10 FLAG_SECURE** on the evidence (History) + report screens via
+  `expo-screen-capture` (`src/lib/secureScreen.ts`). **OFF by default**
+  (`extra.secureScreens: false`) because FLAG_SECURE also blacks the screen out
+  in screen recordings and projector mirroring — which would sabotage the demo
+  (History tamper-check is demo step 4). Set `extra.secureScreens: true` +
+  prebuild for a real deployment; then screenshots/recording of those two
+  screens are blocked.
+
+**Roadmap (Tier 3 — deliberately not implemented here):**
+- **#11 Play Integrity root/tamper detection.** Real Play Integrity needs a Play
+  Console app + a Cloud project with the Integrity API + a backend endpoint that
+  verifies Google's signed verdict. It returns UNEVALUATED/failing on a
+  sideloaded APK and on emulators/rooted devices — i.e. it cannot function on
+  our demo device, and a local root-check stand-in would be bypassable theater.
+  Plan when productionised: client `IntegrityManager` → nonce from a new
+  `/integrity/nonce` endpoint → verify the token server-side → **warn-only**
+  banner, never block. Deferred until the app ships through Play.
+- **#12 deeper RASP / attestation** — note only; out of scope for the demo.
 - Optional: raise `minSdkVersion` to 26/28 to clear the MobSF minSdk HIGH.
 
 **Note:** on-disk `data/ledger.jsonl` is currently broken at seq 7 (left from a

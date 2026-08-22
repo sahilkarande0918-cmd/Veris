@@ -11,8 +11,10 @@ import {
   type LedgerEvent,
 } from "../lib/api"
 import { colors } from "../lib/theme"
+import { useSecureScreen } from "../lib/secureScreen"
 
 export default function History() {
+  useSecureScreen() // FLAG_SECURE on the evidence ledger (off unless extra.secureScreens)
   const [events, setEvents] = useState<LedgerEvent[]>([])
   const [chain, setChain] = useState<ChainStatus | null>(null)
   const [busy, setBusy] = useState(true)
