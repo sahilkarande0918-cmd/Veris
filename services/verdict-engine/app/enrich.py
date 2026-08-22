@@ -9,6 +9,7 @@ Three rules govern everything in this file:
 3. **Cache the rate-limited ones.** VirusTotal's free tier is ~4 req/min.
 """
 
+import ipaddress
 import json
 import os
 import socket
@@ -214,13 +215,39 @@ def domain_age(domain: str) -> list[Signal]:
     return []
 
 
+def _safe_ip(host: str) -> str | None:
+    """SSRF guard: resolve `host` and return a globally-routable IP to connect
+    to, or None if it resolves to any non-public address.
+
+    The subject host comes from attacker-supplied input, so before the engine
+    opens a socket to it we refuse private/loopback/link-local/reserved/etc.
+    addresses. We return the vetted IP (not the hostname) so the caller connects
+    to exactly what was checked -- closing the DNS-rebinding window.
+    """
+    try:
+        infos = socket.getaddrinfo(host, 443, proto=socket.IPPROTO_TCP)
+    except (OSError, UnicodeError):
+        return None
+    for info in infos:
+        ip = info[4][0]
+        try:
+            if not ipaddress.ip_address(ip).is_global:
+                return None  # any non-public resolution -> refuse the whole host
+        except ValueError:
+            return None
+    return infos[0][4][0] if infos else None
+
+
 def tls_certificate(host: str) -> list[Signal]:
     """Certificate issuer and age, read straight off the TLS handshake."""
     if is_offline():
         return []
+    ip = _safe_ip(host)
+    if ip is None:
+        return []  # SSRF guard: unresolvable or non-public address
     try:
         context = ssl.create_default_context()
-        with socket.create_connection((host, 443), timeout=_TIMEOUT) as raw:
+        with socket.create_connection((ip, 443), timeout=_TIMEOUT) as raw:
             with context.wrap_socket(raw, server_hostname=host) as tls:
                 cert = tls.getpeercert()
     except (OSError, ssl.SSLError, ValueError):
