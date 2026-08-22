@@ -39,9 +39,7 @@ export default function Splash() {
     scale.value = withTiming(1, { duration: 720, easing: Easing.out(Easing.back(1.5)) })
     ctaOpacity.value = withDelay(560, withTiming(1, { duration: 480 }))
     ctaShift.value = withDelay(560, withTiming(0, { duration: 480, easing: Easing.out(Easing.quad) }))
-    // Auto-advance after the animation; Get Started is just a shortcut.
-    const t = setTimeout(() => router.replace("/home"), 1400)
-    return () => clearTimeout(t)
+    // Stay on the splash until the user taps Get Started (presenter-controlled).
   }, [hasShareIntent])
 
   const logoStyle = useAnimatedStyle(() => ({

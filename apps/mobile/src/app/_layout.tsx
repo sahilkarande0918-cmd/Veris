@@ -1,5 +1,5 @@
 import { useEffect } from "react"
-import { router, Stack } from "expo-router"
+import { Stack } from "expo-router"
 import { StatusBar } from "expo-status-bar"
 import { ShareIntentProvider } from "expo-share-intent"
 
@@ -25,7 +25,9 @@ export default function RootLayout() {
         // debug logs go to Metro, which is how we verify intake without a UI.
         debug: true,
         resetOnBackground: true,
-        onResetShareIntent: () => router.replace({ pathname: "/home" }),
+        // No forced navigation on reset — it fires on launch/foreground and
+        // would skip the splash. A shared link is still routed to Home by the
+        // splash (index) itself via hasShareIntent.
       }}
     >
       <StatusBar style="light" />
