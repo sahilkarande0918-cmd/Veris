@@ -14,6 +14,27 @@ export const colors = {
   safe: "#2ECC8F",
 }
 
+/** Light palette (the UI refresh — light-blue -> white, verdict green/amber/red). */
+export const light = {
+  bgTop: "#bfdbfe",
+  bgMid: "#dbeafe",
+  bg: "#eff6ff",
+  white: "#ffffff",
+  ink: "#0f172a",
+  muted: "#475569",
+  faint: "#94a3b8",
+  line: "#e2e8f0",
+  card: "#ffffff",
+  primary: "#2563eb",
+  primaryDark: "#1d4ed8",
+  safe: "#16a34a",
+  safeBg: "#dcfce7",
+  warn: "#f59e0b",
+  warnBg: "#fef3c7",
+  danger: "#dc2626",
+  dangerBg: "#fee2e2",
+}
+
 export const verdictStyle: Record<Verdict, { label: string; color: string; advice: string }> = {
   likely_scam: {
     label: "LIKELY SCAM",
