@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import {
   ActivityIndicator,
+  Image,
   Linking,
   Pressable,
   ScrollView,
@@ -11,9 +12,10 @@ import {
 } from "react-native"
 import { router } from "expo-router"
 import { useShareIntentContext } from "expo-share-intent"
+import { LinearGradient } from "expo-linear-gradient"
 
 import { API_BASE, check, health } from "../lib/api"
-import { colors } from "../lib/theme"
+import { light } from "../lib/theme"
 import { setLastResult } from "../lib/store"
 import { triageOnDevice } from "../lib/ondevice"
 import { checkForUpdate, type UpdateInfo } from "../lib/updates"
@@ -125,143 +127,195 @@ export default function Home() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
-      <Text style={styles.lede}>
-        Paste a link, SMS, UPI id or phone number. Veris checks it against real
-        sources and shows you every signal it used.
-      </Text>
-
-      <TextInput
-        style={styles.input}
-        placeholder="https://... or someone@ybl"
-        placeholderTextColor={colors.muted}
-        value={input}
-        onChangeText={setInput}
-        multiline
-        autoCapitalize="none"
-        autoCorrect={false}
+    <View style={styles.root}>
+      <LinearGradient
+        colors={[light.bgMid, light.bg, light.white]}
+        locations={[0, 0.22, 0.5]}
+        style={StyleSheet.absoluteFill}
       />
+      <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
+        {/* header */}
+        <View style={styles.header}>
+          <View style={styles.brand}>
+            <Image source={require("../../assets/images/icon.png")} style={styles.brandLogo} />
+            <Text style={styles.brandName}>Veris</Text>
+          </View>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>S</Text>
+          </View>
+        </View>
 
-      <Pressable
-        style={({ pressed }) => [styles.primary, pressed && styles.pressed, busy && styles.disabled]}
-        onPress={() => run(input)}
-        disabled={busy}
-        accessibilityRole="button"
-      >
-        {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>Check it</Text>}
-      </Pressable>
+        <Text style={styles.lede}>
+          Paste a link, SMS, UPI id or phone number. Veris checks it against real
+          sources and shows you every signal it used.
+        </Text>
 
-      {update && (
+        <TextInput
+          style={styles.input}
+          placeholder="https://... or someone@ybl"
+          placeholderTextColor={light.faint}
+          value={input}
+          onChangeText={setInput}
+          multiline
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+
         <Pressable
-          style={styles.update}
-          onPress={() => void Linking.openURL(update.downloadUrl)}
+          style={({ pressed }) => [styles.primary, pressed && styles.pressed, busy && styles.disabled]}
+          onPress={() => run(input)}
+          disabled={busy}
           accessibilityRole="button"
         >
-          <Text style={styles.updateTitle}>Update available: {update.latest}</Text>
-          <Text style={styles.updateText}>
-            You have {update.installed}. Tap to download, then open the file to
-            install over the top -- you do not need to uninstall Veris.
-          </Text>
+          {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>Check it</Text>}
         </Pressable>
-      )}
 
-      {error && (
-        <View style={styles.error}>
-          <Text style={styles.errorText}>{error}</Text>
+        {update && (
+          <Pressable
+            style={styles.update}
+            onPress={() => void Linking.openURL(update.downloadUrl)}
+            accessibilityRole="button"
+          >
+            <Text style={styles.updateTitle}>Update available: {update.latest}</Text>
+            <Text style={styles.updateText}>
+              You have {update.installed}. Tap to download, then open the file to
+              install over the top -- you do not need to uninstall Veris.
+            </Text>
+          </Pressable>
+        )}
+
+        {error && (
+          <View style={styles.error}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
+
+        <View style={styles.hint}>
+          <Text style={styles.hintTitle}>Share straight into Veris</Text>
+          <Text style={styles.hintText}>
+            In any app, long-press a suspicious link and choose Share, then pick
+            Veris. It is checked the moment it arrives.
+          </Text>
         </View>
-      )}
 
-      <View style={styles.hint}>
-        <Text style={styles.hintTitle}>Share straight into Veris</Text>
-        <Text style={styles.hintText}>
-          In any app, long-press a suspicious link and choose Share, then pick
-          Veris. It is checked the moment it arrives.
+        <Pressable style={styles.secondary} onPress={() => router.push("/scan" as "/")}>
+          <Text style={styles.secondaryText}>Scan a QR code</Text>
+        </Pressable>
+
+        <Pressable style={styles.secondary} onPress={pickScreenshot} disabled={busy}>
+          <Text style={styles.secondaryText}>Check a screenshot</Text>
+        </Pressable>
+
+        <Pressable style={styles.secondary} onPress={() => router.push("/protect")}>
+          <Text style={styles.secondaryText}>Protection settings</Text>
+        </Pressable>
+
+        <Pressable style={styles.secondary} onPress={() => router.push("/history")}>
+          <Text style={styles.secondaryText}>Evidence ledger</Text>
+        </Pressable>
+
+        <Text style={styles.footer}>
+          {engine ?? "checking engine..."}
+          {"\n"}
+          {API_BASE}
         </Text>
-      </View>
-
-      <Pressable style={styles.secondary} onPress={() => router.push("/scan" as "/")}>
-        <Text style={styles.secondaryText}>Scan a QR code</Text>
-      </Pressable>
-
-      <Pressable style={styles.secondary} onPress={pickScreenshot} disabled={busy}>
-        <Text style={styles.secondaryText}>Check a screenshot</Text>
-      </Pressable>
-
-      <Pressable style={styles.secondary} onPress={() => router.push("/protect")}>
-        <Text style={styles.secondaryText}>Protection settings</Text>
-      </Pressable>
-
-      <Pressable style={styles.secondary} onPress={() => router.push("/history")}>
-        <Text style={styles.secondaryText}>Evidence ledger</Text>
-      </Pressable>
-
-      <Text style={styles.footer}>
-        {engine ?? "checking engine..."}
-        {"\n"}
-        {API_BASE}
-      </Text>
-    </ScrollView>
+      </ScrollView>
+    </View>
   )
 }
 
+const shadow = {
+  shadowColor: "#1e293b",
+  shadowOpacity: 0.08,
+  shadowRadius: 12,
+  shadowOffset: { width: 0, height: 5 },
+  elevation: 2,
+}
+
 const styles = StyleSheet.create({
-  page: { padding: 18, gap: 14, backgroundColor: colors.bg, flexGrow: 1 },
-  lede: { color: colors.muted, fontSize: 15, lineHeight: 22 },
+  root: { flex: 1, backgroundColor: light.white },
+  page: { padding: 18, paddingTop: 60, gap: 14, flexGrow: 1 },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 2 },
+  brand: { flexDirection: "row", alignItems: "center", gap: 10 },
+  brandLogo: { width: 36, height: 36, borderRadius: 11 },
+  brandName: { fontSize: 22, fontWeight: "800", color: light.ink, letterSpacing: -0.5 },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: light.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2.5,
+    borderColor: "#fff",
+    ...shadow,
+  },
+  avatarText: { color: "#fff", fontSize: 18, fontWeight: "700" },
+  lede: { color: light.muted, fontSize: 15, lineHeight: 22 },
   input: {
-    backgroundColor: colors.card,
-    borderColor: colors.cardEdge,
+    backgroundColor: light.card,
+    borderColor: light.line,
     borderWidth: 1,
-    borderRadius: 12,
-    color: colors.text,
+    borderRadius: 16,
+    color: light.ink,
     padding: 14,
     minHeight: 96,
     fontSize: 16,
     textAlignVertical: "top",
+    ...shadow,
   },
   primary: {
-    backgroundColor: colors.accent,
-    borderRadius: 12,
-    paddingVertical: 15,
+    backgroundColor: light.primaryDark,
+    borderRadius: 16,
+    paddingVertical: 16,
     alignItems: "center",
+    shadowColor: light.primary,
+    shadowOpacity: 0.32,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 4,
   },
-  pressed: { opacity: 0.8 },
+  pressed: { opacity: 0.85 },
   disabled: { opacity: 0.6 },
   primaryText: { color: "#fff", fontWeight: "700", fontSize: 16 },
   error: {
-    backgroundColor: "#3A1620",
-    borderColor: colors.danger,
+    backgroundColor: light.dangerBg,
+    borderColor: "#fecaca",
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 12,
   },
-  errorText: { color: "#FFD5D5", fontSize: 13, lineHeight: 19 },
+  errorText: { color: "#b91c1c", fontSize: 13, lineHeight: 19 },
   hint: {
-    backgroundColor: colors.card,
-    borderColor: colors.cardEdge,
+    backgroundColor: light.card,
+    borderColor: light.line,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 14,
     gap: 5,
+    ...shadow,
   },
-  hintTitle: { color: colors.text, fontWeight: "700", fontSize: 15 },
-  hintText: { color: colors.muted, fontSize: 14, lineHeight: 20 },
+  hintTitle: { color: light.ink, fontWeight: "700", fontSize: 15 },
+  hintText: { color: light.muted, fontSize: 14, lineHeight: 20 },
   secondary: {
-    borderColor: colors.cardEdge,
+    backgroundColor: light.card,
+    borderColor: light.line,
     borderWidth: 1,
-    borderRadius: 12,
-    paddingVertical: 13,
+    borderRadius: 16,
+    paddingVertical: 15,
     alignItems: "center",
+    ...shadow,
   },
-  secondaryText: { color: colors.text, fontWeight: "600", fontSize: 15 },
-  footer: { color: colors.muted, fontSize: 11, textAlign: "center", marginTop: 4 },
+  secondaryText: { color: light.ink, fontWeight: "600", fontSize: 15 },
+  footer: { color: light.faint, fontSize: 11, textAlign: "center", marginTop: 4 },
   update: {
-    backgroundColor: "#10243A",
-    borderColor: colors.accent,
+    backgroundColor: "#eff6ff",
+    borderColor: "#bfdbfe",
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 13,
     gap: 4,
   },
-  updateTitle: { color: colors.accent, fontWeight: "700", fontSize: 15 },
-  updateText: { color: colors.muted, fontSize: 13, lineHeight: 19 },
+  updateTitle: { color: light.primaryDark, fontWeight: "700", fontSize: 15 },
+  updateText: { color: light.muted, fontSize: 13, lineHeight: 19 },
 })

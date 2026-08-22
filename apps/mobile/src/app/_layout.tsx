@@ -40,7 +40,7 @@ export default function RootLayout() {
         }}
       >
         <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="home" options={{ title: "Veris" }} />
+        <Stack.Screen name="home" options={{ headerShown: false }} />
         <Stack.Screen name="result" options={{ title: "Evidence" }} />
         <Stack.Screen name="report" options={{ title: "Report" }} />
         <Stack.Screen name="history" options={{ title: "Ledger" }} />
