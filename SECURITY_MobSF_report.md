@@ -2,7 +2,7 @@
 
 **Tool:** MobSF (Mobile Security Framework) **v4.5.2**, static analysis
 **Artifact scanned:** `app-release.apk` (release build, R8/ProGuard enabled, arm64-v8a)
-**Package:** `in.veris.app`  **APK size:** 38.85 MB  **MD5:** `261c7e532c1339379576a02d20b30d34`
+**Package:** `in.veris.app`  **APK MD5:** `eb21a2ab6cbf5d8f348bf9c432c8173b` (final Tier 1+2 build)
 **Date:** 2026-08-22
 **Raw report:** [`SECURITY_MobSF_report.json`](SECURITY_MobSF_report.json) (full MobSF output, 3.8 MB)
 
