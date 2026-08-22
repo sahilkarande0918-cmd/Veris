@@ -46,6 +46,19 @@ def test_health_and_register_stay_open(monkeypatch):
     assert client.post("/auth/device", json={"device_id": "device-xyz999"}).status_code == 200
 
 
+def test_ip_ceiling_closes_token_minting_bypass(monkeypatch):
+    # Pentest F2: minting many tokens must not multiply the allowance.
+    monkeypatch.setenv("VERIS_AUTH_SECRET", "s3cret")
+    limit, _ = security.LIMITS["_ip_total"]
+    codes = [client.post("/auth/device", json={"device_id": f"mint-{i}-xxxxxxxx"}).status_code for i in range(limit)]
+    assert all(c == 200 for c in codes)
+    # The IP is now at its ceiling; further requests are refused regardless of endpoint.
+    assert client.post("/auth/device", json={"device_id": "mint-over-xxxxxxxx"}).status_code == 429
+    # A brand-new, validly-signed token cannot escape the exhausted IP ceiling.
+    tok = security.mint_token("escape-dev-xxxxxxxx")
+    assert client.post("/check", json={"input": "x.test"}, headers={"Authorization": f"Bearer {tok}"}).status_code == 429
+
+
 def test_rate_limit_returns_429(monkeypatch):
     monkeypatch.delenv("VERIS_AUTH_SECRET", raising=False)
     limit, _ = security.LIMITS["/check"]

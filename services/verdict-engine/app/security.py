@@ -29,6 +29,10 @@ LIMITS: dict[str, tuple[int, int]] = {
     "/check/apk": (10, 60),
     "/ledger/report": (30, 60),
     "_default": (120, 60),
+    # Ceiling per client IP across ALL endpoints (incl. /auth/device). Bounds a
+    # single caller no matter how many device tokens it mints -- closes the
+    # rate-limit bypass (pentest F2).
+    "_ip_total": (200, 60),
 }
 
 _hits: dict[tuple[str, str], deque] = defaultdict(deque)

@@ -29,9 +29,9 @@ from .subject import classify
 
 app = FastAPI(title="Veris Verdict Engine", version=ENGINE_VERSION)
 
-# Paths that must stay reachable without a token: liveness, token registration,
-# and the interactive docs. Everything else goes through auth + rate limiting.
-_OPEN_PATHS = {"/health", "/auth/device", "/docs", "/redoc", "/openapi.json"}
+# Paths with no rate limit and no auth: liveness and the interactive docs.
+# (/auth/device is token-exempt but IS rate-limited by IP -- handled below.)
+_NO_LIMIT_PATHS = {"/health", "/docs", "/redoc", "/openapi.json"}
 
 # --- Input limits (DoS hardening). Sized to the real inputs: an SMS/URL is
 # tiny, a QR screenshot small, an APK can be large. ---
@@ -68,7 +68,17 @@ async def _auth_and_rate_limit(request: Request, call_next):
     so a single caller cannot burn a hosted engine's third-party quota.
     """
     path = request.url.path
-    if request.method == "OPTIONS" or path in _OPEN_PATHS:
+    if request.method == "OPTIONS" or path in _NO_LIMIT_PATHS:
+        return await call_next(request)
+
+    ip = request.client.host if request.client else "anon"
+    # Per-IP ceiling first, on every API path including /auth/device, so minting
+    # many device tokens from one IP cannot multiply the allowance (F2).
+    if not security.check_rate(f"ip:{ip}", "_ip_total"):
+        return JSONResponse({"detail": "rate limit exceeded"}, status_code=429)
+
+    # Token registration needs no token (but was IP-limited just above).
+    if path == "/auth/device":
         return await call_next(request)
 
     token = ""
@@ -82,7 +92,7 @@ async def _auth_and_rate_limit(request: Request, call_next):
             return JSONResponse({"detail": "missing or invalid device token"}, status_code=401)
         key = device
     else:
-        key = request.client.host if request.client else "anon"
+        key = ip
 
     if not security.check_rate(key, path):
         return JSONResponse({"detail": "rate limit exceeded"}, status_code=429)
