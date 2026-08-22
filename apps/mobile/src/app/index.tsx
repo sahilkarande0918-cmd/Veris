@@ -1,267 +1,106 @@
-import { useEffect, useRef, useState } from "react"
-import {
-  ActivityIndicator,
-  Linking,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native"
+/**
+ * Animated launch screen (UI refresh) — this is the app's entry route.
+ *
+ * On open: the logo zooms in (0.6 -> 1.0) with a fade over ~0.7s on a
+ * light-blue -> white ground, the Get Started button fades up, then it hands
+ * off to Home ("/home"). Under ~1.5s so the demo stays crisp. Pure
+ * presentation — no verdict logic, no API calls. Home remains the share-intent
+ * handler; a shared link resolves there after this screen.
+ */
+import { useEffect } from "react"
+import { Pressable, StyleSheet, Text, View } from "react-native"
 import { router } from "expo-router"
 import { useShareIntentContext } from "expo-share-intent"
+import { LinearGradient } from "expo-linear-gradient"
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withTiming,
+} from "react-native-reanimated"
 
-import { API_BASE, check, health } from "../lib/api"
-import { colors } from "../lib/theme"
-import { setLastResult } from "../lib/store"
-import { triageOnDevice } from "../lib/ondevice"
-import { checkForUpdate, type UpdateInfo } from "../lib/updates"
-import * as ImagePicker from "expo-image-picker"
-import { firstCandidate, textFromImage } from "../lib/ocr"
+import { light } from "../lib/theme"
 
-export default function Home() {
-  const [input, setInput] = useState("")
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [engine, setEngine] = useState<string | null>(null)
-  const [update, setUpdate] = useState<UpdateInfo | null>(null)
-  const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntentContext()
-  // The share effect can fire more than once for one share. Without this the
-  // same check lands in the tamper-evident ledger twice, which makes the
-  // evidence trail look sloppy to anyone reading it.
-  const lastHandled = useRef<string | null>(null)
-
-  // Checked quietly on launch. A failure here must never get in the way of
-  // someone trying to verify a message.
-  useEffect(() => {
-    checkForUpdate().then((info) => {
-      if (info?.available) setUpdate(info)
-    })
-  }, [])
+export default function Splash() {
+  const { hasShareIntent } = useShareIntentContext()
+  const scale = useSharedValue(0.6)
+  const logoOpacity = useSharedValue(0)
+  const ctaOpacity = useSharedValue(0)
+  const ctaShift = useSharedValue(18)
 
   useEffect(() => {
-    health()
-      .then((h) => setEngine(`engine ${h.engine_version} (${h.mode})`))
-      .catch(() => setEngine("engine unreachable"))
-  }, [])
-
-  // A link shared from SMS, WhatsApp or a browser lands here and is checked
-  // immediately -- the user should not have to press anything.
-  useEffect(() => {
-    if (!hasShareIntent) return
-
-    // A shared image (a scam screenshot) -> read its text on-device, then
-    // check the link / UPI id / number inside it with the same engine.
-    const image = shareIntent.files?.find((f) => f.mimeType?.startsWith("image/"))
-    if (image?.path && image.path !== lastHandled.current) {
-      lastHandled.current = image.path
-      void handleScreenshot(image.path)
-      resetShareIntent()
+    // A shared link must reach Home immediately — never sit behind the splash.
+    if (hasShareIntent) {
+      router.replace("/home")
       return
     }
-
-    const shared = shareIntent.webUrl ?? shareIntent.text
-    if (shared && shared !== lastHandled.current) {
-      lastHandled.current = shared
-      setInput(shared)
-      void run(shared)
-    }
-    resetShareIntent()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    logoOpacity.value = withTiming(1, { duration: 600, easing: Easing.out(Easing.quad) })
+    scale.value = withTiming(1, { duration: 720, easing: Easing.out(Easing.back(1.5)) })
+    ctaOpacity.value = withDelay(560, withTiming(1, { duration: 480 }))
+    ctaShift.value = withDelay(560, withTiming(0, { duration: 480, easing: Easing.out(Easing.quad) }))
+    // Auto-advance after the animation; Get Started is just a shortcut.
+    const t = setTimeout(() => router.replace("/home"), 1400)
+    return () => clearTimeout(t)
   }, [hasShareIntent])
 
-  async function pickScreenshot() {
-    // Android 13+ photo picker needs no permission; it returns one image uri.
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      quality: 1,
-    })
-    if (!result.canceled && result.assets[0]?.uri) {
-      await handleScreenshot(result.assets[0].uri)
-    }
-  }
-
-  async function handleScreenshot(uri: string) {
-    setBusy(true)
-    setError(null)
-    try {
-      const candidate = firstCandidate(await textFromImage(uri))
-      if (!candidate) {
-        setError("No link, UPI id, or phone number was found in that image.")
-        return
-      }
-      setInput(candidate)
-      await run(candidate)
-    } catch {
-      setError("Could not read text from that image.")
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function run(raw: string) {
-    const value = raw.trim()
-    if (!value || busy) return
-    setBusy(true)
-    setError(null)
-    try {
-      const result = await check(value)
-      setLastResult(result)
-      router.push("/result")
-    } catch (caught) {
-      // The server is unreachable. Rather than failing, score it on the phone:
-      // a weaker check, clearly labelled, beats no answer when someone is
-      // standing at a counter deciding whether to pay.
-      const local = triageOnDevice(value)
-      setLastResult(local)
-      setError(
-        "Could not reach the Veris server, so this was checked on your phone instead. It is a lighter check -- run the full one when you have a connection.",
-      )
-      router.push("/result")
-    } finally {
-      setBusy(false)
-    }
-  }
+  const logoStyle = useAnimatedStyle(() => ({
+    opacity: logoOpacity.value,
+    transform: [{ scale: scale.value }],
+  }))
+  const ctaStyle = useAnimatedStyle(() => ({
+    opacity: ctaOpacity.value,
+    transform: [{ translateY: ctaShift.value }],
+  }))
 
   return (
-    <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
-      <Text style={styles.lede}>
-        Paste a link, SMS, UPI id or phone number. Veris checks it against real
-        sources and shows you every signal it used.
-      </Text>
-
-      <TextInput
-        style={styles.input}
-        placeholder="https://... or someone@ybl"
-        placeholderTextColor={colors.muted}
-        value={input}
-        onChangeText={setInput}
-        multiline
-        autoCapitalize="none"
-        autoCorrect={false}
+    <View style={styles.root}>
+      <LinearGradient
+        colors={[light.bgTop, light.bgMid, light.bg, light.white]}
+        locations={[0, 0.24, 0.5, 0.74]}
+        style={StyleSheet.absoluteFill}
       />
 
-      <Pressable
-        style={({ pressed }) => [styles.primary, pressed && styles.pressed, busy && styles.disabled]}
-        onPress={() => run(input)}
-        disabled={busy}
-        accessibilityRole="button"
-      >
-        {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>Check it</Text>}
-      </Pressable>
-
-      {update && (
-        <Pressable
-          style={styles.update}
-          onPress={() => void Linking.openURL(update.downloadUrl)}
-          accessibilityRole="button"
-        >
-          <Text style={styles.updateTitle}>Update available: {update.latest}</Text>
-          <Text style={styles.updateText}>
-            You have {update.installed}. Tap to download, then open the file to
-            install over the top -- you do not need to uninstall Veris.
-          </Text>
-        </Pressable>
-      )}
-
-      {error && (
-        <View style={styles.error}>
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      )}
-
-      <View style={styles.hint}>
-        <Text style={styles.hintTitle}>Share straight into Veris</Text>
-        <Text style={styles.hintText}>
-          In any app, long-press a suspicious link and choose Share, then pick
-          Veris. It is checked the moment it arrives.
-        </Text>
+      <View style={styles.center}>
+        <Animated.Image
+          source={require("../../assets/images/icon.png")}
+          style={[styles.logo, logoStyle]}
+        />
       </View>
 
-      <Pressable style={styles.secondary} onPress={() => router.push("/scan" as "/")}>
-        <Text style={styles.secondaryText}>Scan a QR code</Text>
-      </Pressable>
-
-      <Pressable style={styles.secondary} onPress={pickScreenshot} disabled={busy}>
-        <Text style={styles.secondaryText}>Check a screenshot</Text>
-      </Pressable>
-
-      <Pressable style={styles.secondary} onPress={() => router.push("/protect")}>
-        <Text style={styles.secondaryText}>Protection settings</Text>
-      </Pressable>
-
-      <Pressable style={styles.secondary} onPress={() => router.push("/history")}>
-        <Text style={styles.secondaryText}>Evidence ledger</Text>
-      </Pressable>
-
-      <Text style={styles.footer}>
-        {engine ?? "checking engine..."}
-        {"\n"}
-        {API_BASE}
-      </Text>
-    </ScrollView>
+      <Animated.View style={[styles.bottom, ctaStyle]}>
+        <View style={styles.trustRow}>
+          <Text style={styles.trust}>Works offline</Text>
+          <View style={styles.dot} />
+          <Text style={styles.trust}>On-device</Text>
+        </View>
+        <Pressable style={styles.cta} onPress={() => router.replace("/home")}>
+          <Text style={styles.ctaText}>Get Started</Text>
+          <Text style={styles.ctaArrow}>→</Text>
+        </Pressable>
+      </Animated.View>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
-  page: { padding: 18, gap: 14, backgroundColor: colors.bg, flexGrow: 1 },
-  lede: { color: colors.muted, fontSize: 15, lineHeight: 22 },
-  input: {
-    backgroundColor: colors.card,
-    borderColor: colors.cardEdge,
-    borderWidth: 1,
-    borderRadius: 12,
-    color: colors.text,
-    padding: 14,
-    minHeight: 96,
-    fontSize: 16,
-    textAlignVertical: "top",
-  },
-  primary: {
-    backgroundColor: colors.accent,
-    borderRadius: 12,
-    paddingVertical: 15,
+  root: { flex: 1, backgroundColor: light.white },
+  center: { flex: 1, alignItems: "center", justifyContent: "center" },
+  logo: { width: 196, height: 196, borderRadius: 46 },
+  bottom: { paddingHorizontal: 28, paddingBottom: 44, gap: 20, alignItems: "center" },
+  trustRow: { flexDirection: "row", alignItems: "center", gap: 14 },
+  trust: { fontSize: 12, fontWeight: "600", color: "#0f766e" },
+  dot: { width: 4, height: 4, borderRadius: 2, backgroundColor: "#94a3b8" },
+  cta: {
+    width: "100%",
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: light.primaryDark,
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
   },
-  pressed: { opacity: 0.8 },
-  disabled: { opacity: 0.6 },
-  primaryText: { color: "#fff", fontWeight: "700", fontSize: 16 },
-  error: {
-    backgroundColor: "#3A1620",
-    borderColor: colors.danger,
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
-  },
-  errorText: { color: "#FFD5D5", fontSize: 13, lineHeight: 19 },
-  hint: {
-    backgroundColor: colors.card,
-    borderColor: colors.cardEdge,
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 14,
-    gap: 5,
-  },
-  hintTitle: { color: colors.text, fontWeight: "700", fontSize: 15 },
-  hintText: { color: colors.muted, fontSize: 14, lineHeight: 20 },
-  secondary: {
-    borderColor: colors.cardEdge,
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingVertical: 13,
-    alignItems: "center",
-  },
-  secondaryText: { color: colors.text, fontWeight: "600", fontSize: 15 },
-  footer: { color: colors.muted, fontSize: 11, textAlign: "center", marginTop: 4 },
-  update: {
-    backgroundColor: "#10243A",
-    borderColor: colors.accent,
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 13,
-    gap: 4,
-  },
-  updateTitle: { color: colors.accent, fontWeight: "700", fontSize: 15 },
-  updateText: { color: colors.muted, fontSize: 13, lineHeight: 19 },
+  ctaText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  ctaArrow: { color: "#fff", fontSize: 18, fontWeight: "700" },
 })

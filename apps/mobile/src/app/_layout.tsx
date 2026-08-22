@@ -6,9 +6,6 @@ import { ShareIntentProvider } from "expo-share-intent"
 import { loadEngineUrl } from "../lib/api"
 import { colors } from "../lib/theme"
 
-// Launch on the animated splash; it hands off to Home ("index").
-export const unstable_settings = { initialRouteName: "splash" }
-
 /**
  * ShareIntentProvider wraps the whole app so a link shared from any other app
  * is available on whichever screen is mounted. The intent filter that makes
@@ -28,7 +25,7 @@ export default function RootLayout() {
         // debug logs go to Metro, which is how we verify intake without a UI.
         debug: true,
         resetOnBackground: true,
-        onResetShareIntent: () => router.replace({ pathname: "/" }),
+        onResetShareIntent: () => router.replace({ pathname: "/home" }),
       }}
     >
       <StatusBar style="light" />
@@ -40,8 +37,8 @@ export default function RootLayout() {
           contentStyle: { backgroundColor: colors.bg },
         }}
       >
-        <Stack.Screen name="splash" options={{ headerShown: false }} />
-        <Stack.Screen name="index" options={{ title: "Veris" }} />
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="home" options={{ title: "Veris" }} />
         <Stack.Screen name="result" options={{ title: "Evidence" }} />
         <Stack.Screen name="report" options={{ title: "Report" }} />
         <Stack.Screen name="history" options={{ title: "Ledger" }} />
