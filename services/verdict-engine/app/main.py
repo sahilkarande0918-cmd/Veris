@@ -24,9 +24,14 @@ from .explain import explain
 from .ledger import append, read_all, verify
 from .packet import ComplaintDetails, build_packet
 from .rules import decide
+from . import security
 from .subject import classify
 
 app = FastAPI(title="Veris Verdict Engine", version=ENGINE_VERSION)
+
+# Paths that must stay reachable without a token: liveness, token registration,
+# and the interactive docs. Everything else goes through auth + rate limiting.
+_OPEN_PATHS = {"/health", "/auth/device", "/docs", "/redoc", "/openapi.json"}
 
 # --- Input limits (DoS hardening). Sized to the real inputs: an SMS/URL is
 # tiny, a QR screenshot small, an APK can be large. ---
@@ -52,6 +57,52 @@ async def _limit_body_size(request: Request, call_next):
     if length and length.isdigit() and int(length) > MAX_BODY_BYTES:
         return JSONResponse({"detail": "request body too large"}, status_code=413)
     return await call_next(request)
+
+
+@app.middleware("http")
+async def _auth_and_rate_limit(request: Request, call_next):
+    """Gate API paths on a device token (when configured) and a rate limit.
+
+    Auth is opt-in: it only bites when VERIS_AUTH_SECRET is set (a public host).
+    Rate limiting always applies, keyed by device when authed else by client IP,
+    so a single caller cannot burn a hosted engine's third-party quota.
+    """
+    path = request.url.path
+    if request.method == "OPTIONS" or path in _OPEN_PATHS:
+        return await call_next(request)
+
+    token = ""
+    authz = request.headers.get("authorization", "")
+    if authz[:7].lower() == "bearer ":
+        token = authz[7:].strip()
+
+    if security.auth_enabled():
+        device = security.valid_token(token)
+        if device is None:
+            return JSONResponse({"detail": "missing or invalid device token"}, status_code=401)
+        key = device
+    else:
+        key = request.client.host if request.client else "anon"
+
+    if not security.check_rate(key, path):
+        return JSONResponse({"detail": "rate limit exceeded"}, status_code=429)
+    return await call_next(request)
+
+
+class DeviceRegister(BaseModel):
+    """A device identifier the app generates once and keeps (not a secret)."""
+
+    device_id: str = Field(min_length=8, max_length=128)
+
+
+@app.post("/auth/device")
+def register_device(body: DeviceRegister) -> dict:
+    """Issue this device a stateless API token.
+
+    Always reachable. When VERIS_AUTH_SECRET is unset the token is accepted
+    everywhere anyway, so the client flow is identical online and offline.
+    """
+    return {"token": security.mint_token(body.device_id), "auth_required": security.auth_enabled()}
 
 
 async def _read_capped(file: UploadFile, cap: int, what: str) -> bytes:

@@ -19,3 +19,13 @@ def isolated_ledger(tmp_path, monkeypatch):
     real records into the developer's data/ledger.jsonl on every run.
     """
     monkeypatch.setenv("VERIS_LEDGER_PATH", str(tmp_path / "ledger.jsonl"))
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limits():
+    """The rate limiter holds process-wide state; clear it between tests so
+    request counts don't accumulate across the session."""
+    from app import security
+
+    security.reset_rate_limits()
+    yield

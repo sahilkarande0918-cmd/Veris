@@ -102,6 +102,54 @@ export async function setEngineUrl(url: string): Promise<void> {
 
 const TIMEOUT_MS = 20000
 
+// --- Per-device API token (Tier 2 #7) -------------------------------------
+// The engine issues a stateless token per device. We register once per engine
+// URL and attach it as a bearer token. If the engine has no /auth/device (older
+// build) or auth is off, registration just no-ops and calls proceed tokenless.
+const DEVICE_ID_KEY = "veris.deviceId"
+let deviceId: string | null = null
+const tokenByBase: Record<string, string> = {}
+
+function freshId(): string {
+  return `dev-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}`
+}
+
+async function getDeviceId(): Promise<string> {
+  if (deviceId) return deviceId
+  try {
+    let id = await AsyncStorage.getItem(DEVICE_ID_KEY)
+    if (!id) {
+      id = freshId()
+      await AsyncStorage.setItem(DEVICE_ID_KEY, id)
+    }
+    deviceId = id
+  } catch {
+    deviceId = deviceId ?? freshId()
+  }
+  return deviceId
+}
+
+async function ensureToken(base: string): Promise<string | null> {
+  if (tokenByBase[base]) return tokenByBase[base]
+  try {
+    const id = await getDeviceId()
+    const res = await fetch(`${base}/auth/device`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ device_id: id }),
+    })
+    if (!res.ok) return null // older engine or unreachable: proceed tokenless
+    const data = await res.json()
+    if (data?.token) {
+      tokenByBase[base] = data.token
+      return data.token
+    }
+  } catch {
+    // registration failed: proceed tokenless; on-device fallback still covers it
+  }
+  return null
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
@@ -111,11 +159,19 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const isForm = typeof FormData !== "undefined" && init?.body instanceof FormData
     const headers: Record<string, string> = isForm ? {} : { "Content-Type": "application/json" }
     Object.assign(headers, (init?.headers as Record<string, string>) ?? {})
-    const response = await fetch(`${currentBase}${path}`, {
-      ...init,
-      signal: controller.signal,
-      headers,
-    })
+    const base = currentBase
+    const token = await ensureToken(base)
+    if (token) headers["Authorization"] = `Bearer ${token}`
+    let response = await fetch(`${base}${path}`, { ...init, signal: controller.signal, headers })
+    if (response.status === 401 && token) {
+      // Token rejected (e.g. the engine's secret rotated): re-register once.
+      delete tokenByBase[base]
+      const fresh = await ensureToken(base)
+      if (fresh) {
+        headers["Authorization"] = `Bearer ${fresh}`
+        response = await fetch(`${base}${path}`, { ...init, signal: controller.signal, headers })
+      }
+    }
     if (!response.ok) {
       const body = await response.text()
       throw new Error(`Engine returned ${response.status}: ${body.slice(0, 200)}`)
