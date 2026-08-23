@@ -19,6 +19,7 @@ from verdict import Subject, VerdictResult
 from . import ENGINE_VERSION
 from .apk import analyze as analyze_apk
 from .checks import host_of, registered_domain, run_offline_checks
+from .case_file import build_email_case
 from .email_forensics import analyze_email, classify_label
 from .enrich import enrich, is_offline
 from .explain import explain
@@ -336,6 +337,7 @@ async def check_email(
     file: UploadFile | None = File(default=None),
     raw: Annotated[str | None, Form(max_length=MAX_EML_BYTES)] = None,
     language: Annotated[Language, Form()] = "mr",
+    case: Annotated[bool, Form()] = False,
 ) -> dict:
     """Forensic analysis of a raw .eml [SIH26106].
 
@@ -369,4 +371,9 @@ async def check_email(
     append("check", result.model_dump())
 
     label = classify_label(verdict, {s.id for s in signals})
-    return {**result.model_dump(), "email_forensics": {**meta, "classification": label}}
+    forensics = {**meta, "classification": label, "from_name": meta.get("from_name", ""), "from_addr": meta.get("from_addr", "")}
+    response = {**result.model_dump(), "email_forensics": forensics}
+    if case:
+        # Prosecution-ready chain-of-custody case file (embeds the ledger status).
+        response["case_file"] = build_email_case(response, forensics)
+    return response

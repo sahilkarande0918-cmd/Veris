@@ -100,5 +100,36 @@ def test_ml_signal_is_emitted_and_capped():
     assert phish and legit and phish.weight >= legit.weight
 
 
+def test_forensic_case_file_is_prosecution_ready():
+    body = client.post("/check/email", data={"raw": _load("phishing_kyc.eml"), "language": "en", "case": "true"}).json()
+    cf = body["case_file"]
+    assert cf["classification"] == "impersonated"
+    assert cf["verdict"] == "likely_scam"
+    # grouped forensic sections
+    assert cf["findings"]["authentication"]
+    assert cf["findings"]["origin_and_geolocation"]
+    assert cf["findings"]["domain_intelligence"]
+    # chain-of-custody with a verifiable ledger status
+    coc = cf["chain_of_custody"]
+    assert coc["recorded_in_ledger"] is True
+    assert coc["ledger_verified"] is True  # fresh isolated ledger
+    assert coc["head_hash"] and coc["evidence_digest"]
+    # reporting rails include CERT-In
+    assert any("CERT-In" in r["name"] for r in cf["where_to_report"])
+
+
+def test_case_file_reports_a_broken_chain_rather_than_hiding_it(monkeypatch):
+    # Chain-of-custody integrity must be surfaced, not laundered.
+    from app import case_file
+
+    monkeypatch.setattr(case_file, "verify", lambda: {
+        "ok": False, "reason": "contents were altered at seq 3", "broken_at": 3,
+        "head_hash": None, "head_signature": None, "signing_key": "dev",
+    })
+    cf = case_file.build_email_case({"verdict": "likely_scam", "score": 90, "signals": []}, {"message_id": "<x@y>"})
+    assert cf["chain_of_custody"]["ledger_verified"] is False
+    assert "altered" in cf["chain_of_custody"]["ledger_status"]
+
+
 def test_empty_input_is_rejected():
     assert client.post("/check/email", data={}).status_code == 422
