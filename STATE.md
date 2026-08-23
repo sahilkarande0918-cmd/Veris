@@ -224,8 +224,14 @@ for judges: *"tamper-evidence and chain-of-custody, not distributed consensus."*
 (MIT), `dnspython` (ISC), `scikit-learn` (BSD-3) + `joblib`. Geo/reputation use
 existing `httpx` (keyless ip-api; AbuseIPDB optional, backend-env only — not yet
 wired). ML corpus is a compact curated seed (`fixtures/ml/email_corpus.jsonl`),
-swappable for the full Nazario/Kaggle set; trained model committed at
-`app/models/email_clf.joblib`, retrain via `scripts/train_email_classifier.py`.
+swappable for the full set. The MODEL is trained on a larger public phishing
+corpus (`fixtures/ml/email_corpus_full.csv` — a balanced 6,000-row sample,
+3,000 phishing / 3,000 legit, subsampled by `scripts/prep_corpus.py` from the
+public zefang-liu/Kaggle phishing-email set). **Honest metrics (held-out 80/20
+split, test=1,200): accuracy 0.973, phishing precision 0.964 / recall 0.983 /
+F1 0.974, legit precision 0.983 / recall 0.963.** Trained model committed at
+`app/models/email_clf.joblib`; retrain via `scripts/train_email_classifier.py`.
+The model remains ONE capped cited signal, not the decider.
 
 **Note:** on-disk `data/ledger.jsonl` still shows `/ledger/verify` false — a
 PRE-EXISTING break at seq 7 from an earlier tamper demo, unrelated to email work;
