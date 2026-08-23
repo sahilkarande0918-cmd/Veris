@@ -237,6 +237,21 @@ The model remains ONE capped cited signal, not the decider.
 PRE-EXISTING break at seq 7 from an earlier tamper demo, unrelated to email work;
 re-seal with `POST /ledger/dev/rebuild` (VERIS_DEMO=1) before demoing.
 
+## Demo-prep checklist (run before EVERY demo — don't skip under pressure)
+
+1. Start the engine with the demo flags: `VERIS_DEMO=1` (enables the
+   tamper/rebuild controls) and `VERIS_OFFLINE=1` for the offline demo path.
+2. **Re-seal the ledger green:** `POST /ledger/dev/rebuild` → `GET /ledger/verify`
+   must return `{"ok": true}`. (The on-disk `data/ledger.jsonl` can carry an old
+   break from a previous demo — this clears it.)
+3. Sanity-check the email demo, offline: `POST /check/email` with
+   `fixtures/email/phishing_kyc.eml` → `likely_scam` / `impersonated`;
+   `bec_invoice.eml` → `fraud-related`; `legit_statement.eml` → `safe`.
+4. **Tamper demo is re-triggerable on demand** (verified): `POST /ledger/dev/tamper`
+   → `/ledger/verify` shows `ok:false` + the broken record (RED) → `POST
+   /ledger/dev/rebuild` → `ok:true` (GREEN). Repeat as many times as needed.
+5. Engine URL in the app: set to the hosted **HTTPS** URL (cleartext is blocked).
+
 ## Known cleanups / to-do
 - ~~**RECORD_AUDIO** permission~~ — DONE (stripped; not in the built manifest).
 - Debug builds need Metro (laptop) to launch — expected; use the RELEASE APK.
