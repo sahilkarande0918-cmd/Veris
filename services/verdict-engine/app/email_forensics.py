@@ -27,6 +27,7 @@ from verdict import Signal
 from .checks import host_of, registered_domain, run_offline_checks
 from .domain_intel import domain_signals
 from .geo import geo_signals
+from .ml_classifier import ml_signal
 
 # Institutions an email commonly claims to be from; used to flag an origin that
 # claims India but geolocates abroad.
@@ -284,6 +285,11 @@ def analyze_email(raw: str | bytes) -> tuple[list[Signal], dict]:
     # Sender-domain intelligence: WHOIS age/registrar + DNS/MX footprint.
     dom_sigs, dom_meta = domain_signals(from_dom)
     signals += dom_sigs
+
+    # ML phishing-likelihood as one cited, capped signal (assists, never decides).
+    ml = ml_signal(_body_text(msg))
+    if ml:
+        signals.append(ml)
 
     from_name, from_addr = parseaddr(msg["From"] or "")
     meta = {

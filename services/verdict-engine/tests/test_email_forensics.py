@@ -87,5 +87,18 @@ def test_verdict_is_never_written_by_this_module():
     assert "verdict" not in meta
 
 
+def test_ml_signal_is_emitted_and_capped():
+    from app.ml_classifier import ml_signal
+
+    body = client.post("/check/email", data={"raw": _load("phishing_kyc.eml"), "language": "en"}).json()
+    ml = [s for s in body["signals"] if s["id"] == "ml_phishing_likelihood"]
+    assert ml, "ML phishing-likelihood signal should be emitted"
+    assert ml[0]["weight"] <= 30  # capped -> can never override a hard signal
+    # the model discriminates phishing from legit text
+    phish = ml_signal("verify your account and confirm your OTP immediately or it will be blocked")
+    legit = ml_signal("your monthly statement is ready in the portal, thank you for banking with us")
+    assert phish and legit and phish.weight >= legit.weight
+
+
 def test_empty_input_is_rejected():
     assert client.post("/check/email", data={}).status_code == 422

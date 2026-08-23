@@ -13,6 +13,8 @@ python-multipart>=0.0.9  # APK upload on /check/apk
 # email forensics [SIH26106] -- enrichment, offline-first (bundled maps degrade gracefully)
 python-whois>=0.9     # WHOIS registrar/age intel on the sender domain (MIT)
 dnspython>=2.8        # DNS / MX records for the sender domain (ISC)
+scikit-learn>=1.9     # offline phishing classifier (one cited signal; BSD-3)
+joblib>=1.4           # load the committed trained model (app/models/email_clf.joblib)
 
 # test-only
 pytest>=8.3
