@@ -37,6 +37,24 @@ _AUTH = {
 # strongest single spoofing signal an email can carry.
 _AUTH_FAIL_WEIGHT = {"dmarc": 35, "spf": 25, "dkim": 20}
 
+# Deterministic language patterns = the brief's NLP table-stakes as rules. These
+# ASSIST (modest weights) so a hard signal (auth fail, spoof) always dominates;
+# they only tip a borderline email. (id, regex, weight, human description.)
+_PATTERNS = [
+    ("email_lang_urgency", r"(?:\burgent\b|immediately|within\s+\d+\s*hours?|\bexpir\w+|suspend\w*|\bblock(?:ed|ing)?\b|act now|final (?:notice|warning))", 15, "urgency / pressure language"),
+    ("email_lang_credential_harvest", r"(?:verify your (?:account|kyc|identity)|confirm your (?:password|otp|pin)|update (?:your )?kyc|re-?activate|log ?in to (?:verify|confirm|secure))", 20, "credential / KYC-harvesting language"),
+    ("email_lang_payment_diversion", r"(?:change (?:of )?(?:bank|account) details|updated (?:bank|account)|new account number|wire transfer|remittance|change the payment)", 25, "payment-diversion (BEC) language"),
+    ("email_lang_fake_invoice", r"(?:invoice attached|outstanding (?:payment|invoice|balance)|overdue|payment (?:is )?due|proforma)", 20, "fake-invoice (BEC) language"),
+]
+_COMPILED = [(pid, re.compile(rx, re.IGNORECASE), w, desc) for pid, rx, w, desc in _PATTERNS]
+
+# Brand / institution names a display-name commonly impersonates.
+_BRANDS = {
+    "hdfc", "icici", "sbi", "axis", "kotak", "paypal", "amazon", "microsoft",
+    "google", "apple", "netflix", "income tax", "gst", "uidai", "aadhaar",
+    "rbi", "npci", "paytm", "phonepe",
+}
+
 
 def parse_eml(raw: str | bytes) -> EmailMessage:
     """Parse raw .eml text into a message. Stdlib `email` IS the maintained
@@ -174,9 +192,58 @@ def link_signals(msg: EmailMessage) -> list[Signal]:
     return signals
 
 
+def _body_text(msg: EmailMessage) -> str:
+    try:
+        body = msg.get_body(preferencelist=("plain", "html"))
+        text = body.get_content() if body else ""
+    except (KeyError, LookupError, AttributeError):
+        text = ""
+    return f"{msg['Subject'] or ''}\n{text or str(msg)}"
+
+
+def content_signals(msg: EmailMessage) -> list[Signal]:
+    """The NLP table-stakes as deterministic rules: urgency, credential
+    harvesting, payment diversion, fake invoice (BEC). Assist-weighted."""
+    text = _body_text(msg)
+    signals: list[Signal] = []
+    for pid, pattern, weight, desc in _COMPILED:
+        m = pattern.search(text)
+        if m:
+            signals.append(
+                Signal(
+                    id=pid,
+                    source="email body language analysis",
+                    value=f'{desc} (e.g. "{m.group(0).strip()[:60]}")',
+                    weight=weight,
+                )
+            )
+    return signals
+
+
+def display_name_spoof(msg: EmailMessage, from_domain: str) -> Signal | None:
+    """Display name asserts a brand the sending domain has nothing to do with."""
+    name = (parseaddr(msg["From"] or "")[0] or "").lower()
+    for brand in _BRANDS:
+        if brand in name and brand.replace(" ", "") not in from_domain.replace("-", ""):
+            return Signal(
+                id="email_display_name_spoof",
+                source="From display name vs sender domain",
+                value=f'display name claims "{brand}" but the address domain is {from_domain or "unknown"}',
+                weight=30,
+            )
+    return None
+
+
+def sender_domain_signals(from_domain: str) -> list[Signal]:
+    """Route the sender's own domain through the EXISTING engine so a deceptive
+    or look-alike sender domain is caught the same way a link would be."""
+    return run_offline_checks("domain", from_domain) if from_domain else []
+
+
 def classify_label(verdict: str, signal_ids: set[str]) -> str:
     """The brief's 5-label taxonomy, derived DETERMINISTICALLY from which signals
     fired -- not by the model. Hard signals drive it, same as the verdict."""
+    bec = signal_ids & {"email_lang_payment_diversion", "email_lang_fake_invoice"}
     spoofed = signal_ids & {
         "email_from_returnpath_mismatch",
         "email_display_name_spoof",
@@ -184,6 +251,8 @@ def classify_label(verdict: str, signal_ids: set[str]) -> str:
         "email_auth_spf",
     }
     if verdict == "likely_scam":
+        if bec:
+            return "fraud-related"
         return "impersonated" if spoofed else "phishing"
     if verdict == "suspicious":
         return "suspicious"
@@ -193,7 +262,11 @@ def classify_label(verdict: str, signal_ids: set[str]) -> str:
 def analyze_email(raw: str | bytes) -> tuple[list[Signal], dict]:
     """Full offline analysis: (signals for the rule engine, forensic metadata)."""
     msg = parse_eml(raw)
-    signals = header_signals(msg) + link_signals(msg)
+    from_dom = _domain_of(msg["From"])
+    signals = header_signals(msg) + content_signals(msg) + link_signals(msg) + sender_domain_signals(from_dom)
+    spoof = display_name_spoof(msg, from_dom)
+    if spoof:
+        signals.append(spoof)
 
     from_name, from_addr = parseaddr(msg["From"] or "")
     meta = {

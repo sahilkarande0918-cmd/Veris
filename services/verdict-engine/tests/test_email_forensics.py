@@ -44,6 +44,17 @@ def test_legit_email_passes():
     assert body["email_forensics"]["auth_results"] == {"spf": "pass", "dkim": "pass", "dmarc": "pass"}
 
 
+def test_bec_invoice_is_classified_fraud_related():
+    resp = client.post("/check/email", data={"raw": _load("bec_invoice.eml"), "language": "en"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["verdict"] == "likely_scam"
+    ids = {s["id"] for s in body["signals"]}
+    assert "email_lang_payment_diversion" in ids  # BEC language
+    assert "email_lang_fake_invoice" in ids
+    assert body["email_forensics"]["classification"] == "fraud-related"
+
+
 def test_originating_ip_is_the_earliest_public_hop():
     signals, meta = analyze_email(_load("phishing_kyc.eml"))
     # 10.0.0.5 is private (the receiver); the true origin is the public sender.

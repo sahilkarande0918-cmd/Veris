@@ -1,0 +1,20 @@
+Return-Path: <accounts@vendor-supplies.co>
+Received: from mx.recipient.gov.in (mx.recipient.gov.in [10.0.0.5]) by inbound.recipient.gov.in with ESMTP id P0O9I8; Sat, 22 Aug 2026 10:00:05 +0530
+Received: from smtp.vendor-suppliers.co (unknown [45.137.22.88]) by mx.recipient.gov.in with ESMTP id L7K6J5; Sat, 22 Aug 2026 10:00:03 +0530
+Authentication-Results: mx.recipient.gov.in; spf=softfail smtp.mailfrom=vendor-supplies.co; dkim=none; dmarc=fail header.from=vendor-suppliers.co
+From: "Rajesh Kumar - Accounts" <accounts@vendor-suppliers.co>
+Reply-To: <finance.updates2026@gmail.com>
+To: payments@recipient.gov.in
+Subject: Overdue invoice - updated bank account for payment
+Message-ID: <inv-8842@vendor-suppliers.co>
+Date: Sat, 22 Aug 2026 10:00:00 +0530
+Content-Type: text/plain; charset="utf-8"
+
+Dear Sir,
+
+Please find our outstanding invoice which is now overdue. Kindly note we have
+updated bank account details for this remittance. Process the wire transfer
+urgently to the new account number provided below.
+
+Regards,
+Accounts Team
