@@ -9,7 +9,7 @@
 
 export type Verdict = "safe" | "suspicious" | "likely_scam"
 
-export type SubjectType = "url" | "domain" | "phone" | "upi" | "apk_hash"
+export type SubjectType = "url" | "domain" | "phone" | "upi" | "apk_hash" | "email"
 
 /** One piece of evidence from one named source. */
 export interface Signal {

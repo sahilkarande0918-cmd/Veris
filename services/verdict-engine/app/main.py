@@ -19,6 +19,7 @@ from verdict import Subject, VerdictResult
 from . import ENGINE_VERSION
 from .apk import analyze as analyze_apk
 from .checks import host_of, registered_domain, run_offline_checks
+from .email_forensics import analyze_email, classify_label
 from .enrich import enrich, is_offline
 from .explain import explain
 from .ledger import append, read_all, verify
@@ -39,6 +40,7 @@ MAX_INPUT_CHARS = 4096  # a shared SMS/link; anything larger is not a subject
 MAX_QR_TEXT_CHARS = 8192  # a decoded QR payload (can be a long URL)
 MAX_IMAGE_BYTES = 10 * 1024 * 1024  # QR screenshot
 MAX_APK_BYTES = 200 * 1024 * 1024  # a large real APK
+MAX_EML_BYTES = 25 * 1024 * 1024  # a large email with attachments
 MAX_BODY_BYTES = MAX_APK_BYTES + 1024 * 1024  # global request-body ceiling
 
 # Output languages the explainer actually supports (see explain.py). Rejecting
@@ -327,3 +329,44 @@ async def check_apk(file: UploadFile = File(...), language: Language = "mr") -> 
     result.explanation = explain(result, language)
     append("check", result.model_dump())
     return result
+
+
+@app.post("/check/email")
+async def check_email(
+    file: UploadFile | None = File(default=None),
+    raw: Annotated[str | None, Form(max_length=MAX_EML_BYTES)] = None,
+    language: Annotated[Language, Form()] = "mr",
+) -> dict:
+    """Forensic analysis of a raw .eml [SIH26106].
+
+    Fully offline: header/authentication forensics plus links routed through the
+    SAME url engine become cited signals, the SAME `decide()` produces the
+    verdict, and the result lands in the SAME hash-chained ledger. The email's
+    structured forensics (auth results, originating IP, 5-label classification)
+    ride alongside the standard VerdictResult.
+    """
+    if raw:
+        content: str | bytes = raw
+    elif file is not None:
+        content = await _read_capped(file, MAX_EML_BYTES, "email")
+    else:
+        raise HTTPException(status_code=422, detail="provide an .eml file or raw text")
+
+    signals, meta = analyze_email(content)
+    if not signals:
+        raise HTTPException(status_code=422, detail="could not parse an email from that input")
+
+    verdict, score, rules_fired = decide(signals)
+    result = VerdictResult(
+        subject=Subject(type="email", value=meta.get("from_addr") or meta.get("message_id") or "email"),
+        verdict=verdict,
+        score=score,
+        signals=signals,
+        rules_fired=rules_fired,
+        engine_version=ENGINE_VERSION,
+    )
+    result.explanation = explain(result, language)
+    append("check", result.model_dump())
+
+    label = classify_label(verdict, {s.id for s in signals})
+    return {**result.model_dump(), "email_forensics": {**meta, "classification": label}}

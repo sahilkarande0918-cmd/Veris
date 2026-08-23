@@ -1,0 +1,20 @@
+Return-Path: <bounce@mailer-xyz.ru>
+Received: from mx.recipient.gov.in (mx.recipient.gov.in [10.0.0.5]) by inbound.recipient.gov.in with ESMTP id A1B2C3; Sat, 22 Aug 2026 09:00:05 +0530
+Received: from smtp.mailer-xyz.ru (unknown [185.220.101.5]) by mx.recipient.gov.in with ESMTP id D4E5F6; Sat, 22 Aug 2026 09:00:03 +0530
+Authentication-Results: mx.recipient.gov.in; spf=fail smtp.mailfrom=mailer-xyz.ru; dkim=fail header.d=hdfcbank-secure.top; dmarc=fail header.from=hdfcbank-secure.top
+From: "HDFC Bank Secure" <alerts@hdfcbank-secure.top>
+Reply-To: <recover@gmail-support.info>
+To: victim@recipient.gov.in
+Subject: Urgent: Your account will be blocked - verify KYC now
+Message-ID: <20260822.abc123@mailer-xyz.ru>
+Date: Sat, 22 Aug 2026 09:00:00 +0530
+Content-Type: text/plain; charset="utf-8"
+
+Dear Customer,
+
+Your account will be suspended within 24 hours. Verify your KYC immediately:
+https://xn--icicibnk-66g.com/login
+
+Failure to act will result in a permanent block of your account.
+
+HDFC Bank Security Team

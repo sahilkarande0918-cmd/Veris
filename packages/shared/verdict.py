@@ -14,7 +14,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 Verdict = Literal["safe", "suspicious", "likely_scam"]
-SubjectType = Literal["url", "domain", "phone", "upi", "apk_hash"]
+SubjectType = Literal["url", "domain", "phone", "upi", "apk_hash", "email"]
 
 
 def utc_now() -> str:

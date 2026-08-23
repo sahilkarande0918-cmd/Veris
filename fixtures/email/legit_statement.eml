@@ -1,0 +1,17 @@
+Return-Path: <noreply@hdfcbank.com>
+Received: from mx.recipient.gov.in (mx.recipient.gov.in [10.0.0.5]) by inbound.recipient.gov.in with ESMTP id Z9Y8X7; Sat, 22 Aug 2026 08:00:05 +0530
+Received: from mail.hdfcbank.com (mail.hdfcbank.com [103.50.160.10]) by mx.recipient.gov.in with ESMTP id W6V5U4; Sat, 22 Aug 2026 08:00:03 +0530
+Authentication-Results: mx.recipient.gov.in; spf=pass smtp.mailfrom=hdfcbank.com; dkim=pass header.d=hdfcbank.com; dmarc=pass header.from=hdfcbank.com
+From: "HDFC Bank" <alerts@hdfcbank.com>
+To: customer@recipient.gov.in
+Subject: Your monthly account statement is ready
+Message-ID: <stmt-202608@hdfcbank.com>
+Date: Sat, 22 Aug 2026 08:00:00 +0530
+Content-Type: text/plain; charset="utf-8"
+
+Dear Customer,
+
+Your account statement for August 2026 is now available in NetBanking:
+https://netbanking.hdfcbank.com/statements
+
+Thank you for banking with us.
