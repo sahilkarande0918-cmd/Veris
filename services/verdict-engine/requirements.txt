@@ -10,6 +10,10 @@ tldextract>=5.3       # Public Suffix List, pinned to its bundled offline snapsh
 pyaxmlparser>=0.3     # read an APK manifest offline, without installing the app
 python-multipart>=0.0.9  # APK upload on /check/apk
 
+# email forensics [SIH26106] -- enrichment, offline-first (bundled maps degrade gracefully)
+python-whois>=0.9     # WHOIS registrar/age intel on the sender domain (MIT)
+dnspython>=2.8        # DNS / MX records for the sender domain (ISC)
+
 # test-only
 pytest>=8.3
 opencv-python-headless>=4.9  # offline QR decoding (cv2.QRCodeDetector)

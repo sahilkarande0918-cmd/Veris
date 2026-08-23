@@ -1,0 +1,6 @@
+{
+  "_note": "Offline WHOIS/DNS intel for demo/seed sender domains so the forensic demo runs with the network off. Online, python-whois + dnspython (cached) supersede this.",
+  "hdfcbank-secure.top": {"registrar": "NameCheap Inc.", "created": "2026-08-10", "age_days": 14, "name_servers": ["dns1.registrar-servers.com"], "mx": []},
+  "vendor-suppliers.co": {"registrar": "PDR Ltd. d/b/a PublicDomainRegistry", "created": "2026-07-18", "age_days": 37, "name_servers": ["ns1.parkingcrew.net"], "mx": ["mail.vendor-suppliers.co"]},
+  "hdfcbank.com": {"registrar": "MarkMonitor Inc.", "created": "1997-06-10", "age_days": 10600, "name_servers": ["ns1.hdfcbank.com"], "mx": ["mx1.hdfcbank.com", "mx2.hdfcbank.com"]}
+}

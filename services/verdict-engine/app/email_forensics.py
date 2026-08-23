@@ -25,6 +25,7 @@ from email.utils import parseaddr
 from verdict import Signal
 
 from .checks import host_of, registered_domain, run_offline_checks
+from .domain_intel import domain_signals
 from .geo import geo_signals
 
 # Institutions an email commonly claims to be from; used to flag an origin that
@@ -280,6 +281,10 @@ def analyze_email(raw: str | bytes) -> tuple[list[Signal], dict]:
     geo_sigs, geo_meta = geo_signals(ip, claims_india)
     signals += geo_sigs
 
+    # Sender-domain intelligence: WHOIS age/registrar + DNS/MX footprint.
+    dom_sigs, dom_meta = domain_signals(from_dom)
+    signals += dom_sigs
+
     from_name, from_addr = parseaddr(msg["From"] or "")
     meta = {
         "from_name": from_name,
@@ -292,6 +297,7 @@ def analyze_email(raw: str | bytes) -> tuple[list[Signal], dict]:
         "auth_results": auth_results(msg),
         "originating_ip": ip,
         "geo": geo_meta,
+        "domain_intel": dom_meta,
         "received_hops": len(msg.get_all("Received", [])),
         "links": _links(msg),
     }

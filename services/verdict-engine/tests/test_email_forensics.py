@@ -71,6 +71,15 @@ def test_origin_geolocation_tor_and_claim_mismatch():
     assert body["email_forensics"]["geo"]["country_code"] == "DE"
 
 
+def test_sender_domain_intel_flags_new_domain_and_no_mx():
+    resp = client.post("/check/email", data={"raw": _load("phishing_kyc.eml"), "language": "en"})
+    body = resp.json()
+    ids = {s["id"] for s in body["signals"]}
+    assert "email_domain_new" in ids  # hdfcbank-secure.top registered days ago
+    assert "email_domain_no_mx" in ids  # no MX -> spoofing tell
+    assert body["email_forensics"]["domain_intel"]["registrar"]
+
+
 def test_verdict_is_never_written_by_this_module():
     # analyze_email only gathers signals; it has no verdict field to set.
     signals, meta = analyze_email(_load("phishing_kyc.eml"))
