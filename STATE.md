@@ -189,6 +189,48 @@ found and **fixed** two issues, verified by re-test + the suite:
 prior tamper demo; gitignored local data, not caused by this pass). Re-seal with
 the app's "Restore" / `POST /ledger/dev/rebuild` (VERIS_DEMO=1) before demoing.
 
+## SIH26106 — AI-Powered Email Threat Detection, GeoLocation & Forensic Intelligence
+
+Building the SIH26106 feature set into Veris by REUSING the verdict engine,
+ledger, enrichment and explanation UNCHANGED. Detection is commodity; we win on
+chain-of-custody evidence + graph campaign attribution. `decide()`, the hash
+chain, and `/ledger/verify` are never modified; the LLM explains/assists, never
+overrides hard signals. Everything runs offline via bundled fixtures.
+
+**Brief component → implementation (TABLE-STAKES — DONE, 132 tests, offline):**
+| Brief KC | Built |
+|---|---|
+| Ingestion | `/check/email` (.eml + raw), stdlib `email` parser (no new dep) |
+| Header/protocol | SPF/DKIM/DMARC (Authentication-Results), From↔Return-Path, Reply-To, Received-chain originating IP → cited signals |
+| Fraud/NLP | deterministic urgency/credential/payment-diversion/fake-invoice signals + **ML** (`ml_phishing_likelihood`, one capped cited signal, sklearn LogReg, offline model) → 5-label (legitimate/suspicious/impersonated/phishing/fraud-related) |
+| Origin & location | `app/geo.py`: geolocate (offline map + keyless ip-api, cached) + TOR/hosting/**origin-vs-claim** flags |
+| Domain intel | `app/domain_intel.py`: WHOIS age/registrar + DNS/MX (offline map + python-whois/dnspython) |
+| Links/attachments | body links + sender domain routed through the EXISTING `run_offline_checks` url engine |
+
+**DIFFERENTIATORS — NEXT (not built yet):** (7) chain-of-custody forensic case
+file + prosecution-ready export on the existing ledger; (8) `networkx`
+graph-based campaign attribution on the seeded 4-email set. Then (9) investigator
+console UI, (10) privacy/masking layer.
+
+**Why a hash-chain, not a blockchain (theme = "Blockchain & Cybersecurity").**
+We needed tamper-evidence and chain-of-custody, not distributed consensus. A
+signed SHA-256 hash-chain gives court-admissible integrity with instant offline
+verification (`/ledger/verify` names the first altered record). A blockchain
+would add consensus overhead and latency for zero benefit on a single-custodian
+evidence log — so it is a deliberate non-goal (see ARCHITECTURE.md). One-liner
+for judges: *"tamper-evidence and chain-of-custody, not distributed consensus."*
+
+**Dependencies added (all verified maintained + permissive):** `python-whois`
+(MIT), `dnspython` (ISC), `scikit-learn` (BSD-3) + `joblib`. Geo/reputation use
+existing `httpx` (keyless ip-api; AbuseIPDB optional, backend-env only — not yet
+wired). ML corpus is a compact curated seed (`fixtures/ml/email_corpus.jsonl`),
+swappable for the full Nazario/Kaggle set; trained model committed at
+`app/models/email_clf.joblib`, retrain via `scripts/train_email_classifier.py`.
+
+**Note:** on-disk `data/ledger.jsonl` still shows `/ledger/verify` false — a
+PRE-EXISTING break at seq 7 from an earlier tamper demo, unrelated to email work;
+re-seal with `POST /ledger/dev/rebuild` (VERIS_DEMO=1) before demoing.
+
 ## Known cleanups / to-do
 - ~~**RECORD_AUDIO** permission~~ — DONE (stripped; not in the built manifest).
 - Debug builds need Metro (laptop) to launch — expected; use the RELEASE APK.
