@@ -1,0 +1,6 @@
+{
+  "_note": "Offline geolocation for demo/seed IPs so the forensic demo runs with the network off. Online, ip-api.com (keyless, cached) supersedes this.",
+  "185.220.101.5": {"country": "Germany", "country_code": "DE", "region": "Hesse", "city": "Frankfurt", "isp": "Zwiebelfreunde e.V.", "org": "TOR exit relay", "asn": "AS205100"},
+  "45.137.22.88": {"country": "Netherlands", "country_code": "NL", "region": "North Holland", "city": "Amsterdam", "isp": "Bulletproof-Hosting", "org": "Cloud/hosting provider", "asn": "AS211252"},
+  "103.50.160.10": {"country": "India", "country_code": "IN", "region": "Maharashtra", "city": "Mumbai", "isp": "HDFC Bank Ltd", "org": "HDFC Bank Ltd", "asn": "AS45194"}
+}

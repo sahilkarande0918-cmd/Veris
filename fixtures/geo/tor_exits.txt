@@ -1,0 +1,7 @@
+# Snapshot of TOR exit-node IPs (source: Tor Project public bulk exit list, dan.me.uk/tornodes — public data).
+# Bundled offline so anonymized-infrastructure detection works with the network off.
+185.220.101.5
+185.220.100.240
+185.220.101.34
+204.13.164.118
+171.25.193.20

@@ -25,6 +25,11 @@ from email.utils import parseaddr
 from verdict import Signal
 
 from .checks import host_of, registered_domain, run_offline_checks
+from .geo import geo_signals
+
+# Institutions an email commonly claims to be from; used to flag an origin that
+# claims India but geolocates abroad.
+_INDIA_BRANDS = {"hdfc", "icici", "sbi", "axis", "kotak", "paytm", "phonepe", "npci", "rbi", "uidai", "aadhaar", "gst", "income tax"}
 
 _URL = re.compile(r"https?://[^\s<>\"')]+", re.IGNORECASE)
 _IPV4 = re.compile(r"\b(\d{1,3}(?:\.\d{1,3}){3})\b")
@@ -268,6 +273,13 @@ def analyze_email(raw: str | bytes) -> tuple[list[Signal], dict]:
     if spoof:
         signals.append(spoof)
 
+    # Origin geolocation + anonymized-infra / origin-vs-claim flags.
+    ip = originating_ip(msg.get_all("Received", []))
+    display = (parseaddr(msg["From"] or "")[0] or "").lower()
+    claims_india = from_dom.endswith(".in") or any(b in f"{from_dom} {display}" for b in _INDIA_BRANDS)
+    geo_sigs, geo_meta = geo_signals(ip, claims_india)
+    signals += geo_sigs
+
     from_name, from_addr = parseaddr(msg["From"] or "")
     meta = {
         "from_name": from_name,
@@ -278,7 +290,8 @@ def analyze_email(raw: str | bytes) -> tuple[list[Signal], dict]:
         "subject": str(msg["Subject"] or ""),
         "message_id": str(msg["Message-ID"] or ""),
         "auth_results": auth_results(msg),
-        "originating_ip": originating_ip(msg.get_all("Received", [])),
+        "originating_ip": ip,
+        "geo": geo_meta,
         "received_hops": len(msg.get_all("Received", [])),
         "links": _links(msg),
     }

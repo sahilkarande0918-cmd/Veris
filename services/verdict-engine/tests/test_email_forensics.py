@@ -61,6 +61,16 @@ def test_originating_ip_is_the_earliest_public_hop():
     assert meta["originating_ip"] == "185.220.101.5"
 
 
+def test_origin_geolocation_tor_and_claim_mismatch():
+    resp = client.post("/check/email", data={"raw": _load("phishing_kyc.eml"), "language": "en"})
+    body = resp.json()
+    ids = {s["id"] for s in body["signals"]}
+    assert "email_origin_geo" in ids
+    assert "email_origin_tor" in ids  # 185.220.101.5 is a bundled TOR exit
+    assert "email_origin_mismatch" in ids  # claims HDFC (India), originates Germany
+    assert body["email_forensics"]["geo"]["country_code"] == "DE"
+
+
 def test_verdict_is_never_written_by_this_module():
     # analyze_email only gathers signals; it has no verdict field to set.
     signals, meta = analyze_email(_load("phishing_kyc.eml"))
