@@ -1,0 +1,15 @@
+# Keep the cloud image lean and correct: never copy local virtualenvs (wrong
+# platform + huge), caches, the mobile app, or build artifacts into it.
+**/.venv
+**/venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.mypy_cache
+**/node_modules
+apps/
+**/.git
+*.apk
+Veris-*.apk
+mobsf-venv/
+docs/
