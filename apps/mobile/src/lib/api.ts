@@ -8,7 +8,7 @@
  */
 
 export type Verdict = "safe" | "suspicious" | "likely_scam"
-export type SubjectType = "url" | "domain" | "phone" | "upi" | "apk_hash"
+export type SubjectType = "url" | "domain" | "phone" | "upi" | "apk_hash" | "email"
 
 export interface Signal {
   id: string
@@ -34,6 +34,32 @@ export interface VerdictResult {
   engine_version: string
   generated_at: string
   explanation?: Explanation | null
+}
+
+export type EmailClass = "legitimate" | "suspicious" | "impersonated" | "phishing" | "fraud-related"
+
+export interface EmailForensics {
+  from_name?: string
+  from_addr?: string
+  from_domain?: string
+  to?: string
+  return_path?: string
+  reply_to?: string
+  subject?: string
+  message_id?: string
+  auth_results: Record<string, string>
+  originating_ip?: string | null
+  geo?: { country?: string; country_code?: string; city?: string; org?: string; isp?: string; asn?: string }
+  domain_intel?: { registrar?: string; age_days?: number | null; mx?: string[]; name_servers?: string[] }
+  received_hops?: number
+  links?: string[]
+  classification: EmailClass
+  pii_masked?: boolean
+}
+
+export interface EmailResult extends VerdictResult {
+  email_forensics: EmailForensics
+  case_file?: Record<string, unknown>
 }
 
 export interface LedgerEvent {
@@ -223,6 +249,23 @@ export function check(
     method: "POST",
     body: JSON.stringify({ input, language, explain: true, record: true }),
   })
+}
+
+/**
+ * Forensic analysis of a raw .eml [SIH26106]. Returns the standard verdict plus
+ * the email_forensics block (auth, origin+geo, domain intel, 5-label). `mask`
+ * masks PII in the display; `withCase` also returns the chain-of-custody file.
+ */
+export function checkEmail(
+  raw: string,
+  opts?: { language?: "mr" | "hi" | "en"; mask?: boolean; withCase?: boolean },
+): Promise<EmailResult> {
+  const fd = new FormData()
+  fd.append("raw", raw)
+  fd.append("language", opts?.language ?? "en")
+  if (opts?.mask) fd.append("mask", "true")
+  if (opts?.withCase) fd.append("case", "true")
+  return request<EmailResult>("/check/email", { method: "POST", body: fd })
 }
 
 /**

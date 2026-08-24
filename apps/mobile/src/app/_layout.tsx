@@ -4,7 +4,7 @@ import { StatusBar } from "expo-status-bar"
 import { ShareIntentProvider } from "expo-share-intent"
 
 import { loadEngineUrl } from "../lib/api"
-import { colors } from "../lib/theme"
+import { colors, light } from "../lib/theme"
 
 /**
  * ShareIntentProvider wraps the whole app so a link shared from any other app
@@ -41,6 +41,10 @@ export default function RootLayout() {
       >
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="home" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="email"
+          options={{ title: "Investigator", headerStyle: { backgroundColor: light.bgMid }, headerTintColor: light.ink }}
+        />
         <Stack.Screen name="result" options={{ title: "Evidence" }} />
         <Stack.Screen name="report" options={{ title: "Report" }} />
         <Stack.Screen name="history" options={{ title: "Ledger" }} />

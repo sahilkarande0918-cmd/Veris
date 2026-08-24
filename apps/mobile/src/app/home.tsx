@@ -198,6 +198,14 @@ export default function Home() {
           </Text>
         </View>
 
+        <Pressable style={styles.investigator} onPress={() => router.push("/email" as "/")}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.investigatorTitle}>Email Threat Forensics</Text>
+            <Text style={styles.investigatorSub}>Analyze a suspicious email — trace origin, verify, attribute</Text>
+          </View>
+          <Text style={styles.investigatorArrow}>→</Text>
+        </Pressable>
+
         <Pressable style={styles.secondary} onPress={() => router.push("/scan" as "/")}>
           <Text style={styles.secondaryText}>Scan a QR code</Text>
         </Pressable>
@@ -307,6 +315,20 @@ const styles = StyleSheet.create({
     ...shadow,
   },
   secondaryText: { color: light.ink, fontWeight: "600", fontSize: 15 },
+  investigator: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "#eff6ff",
+    borderColor: "#bfdbfe",
+    borderWidth: 1.5,
+    borderRadius: 16,
+    padding: 16,
+    ...shadow,
+  },
+  investigatorTitle: { color: light.primaryDark, fontWeight: "800", fontSize: 16 },
+  investigatorSub: { color: "#3b82f6", fontSize: 12, marginTop: 2 },
+  investigatorArrow: { color: light.primaryDark, fontSize: 20, fontWeight: "800" },
   footer: { color: light.faint, fontSize: 11, textAlign: "center", marginTop: 4 },
   update: {
     backgroundColor: "#eff6ff",
