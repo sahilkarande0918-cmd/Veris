@@ -22,6 +22,7 @@ from .checks import host_of, registered_domain, run_offline_checks
 from .campaign import correlate
 from .case_file import build_email_case
 from .email_forensics import analyze_email, classify_label
+from .privacy import log_preservation, mask_forensics, masking_enabled, retention_policy
 from .enrich import enrich, is_offline
 from .explain import explain
 from .ledger import append, read_all, verify
@@ -339,6 +340,7 @@ async def check_email(
     raw: Annotated[str | None, Form(max_length=MAX_EML_BYTES)] = None,
     language: Annotated[Language, Form()] = "mr",
     case: Annotated[bool, Form()] = False,
+    mask: Annotated[bool | None, Form()] = None,
 ) -> dict:
     """Forensic analysis of a raw .eml [SIH26106].
 
@@ -372,12 +374,21 @@ async def check_email(
     append("check", result.model_dump())
 
     label = classify_label(verdict, {s.id for s in signals})
-    forensics = {**meta, "classification": label, "from_name": meta.get("from_name", ""), "from_addr": meta.get("from_addr", "")}
-    response = {**result.model_dump(), "email_forensics": forensics}
+    forensics = {**meta, "classification": label}
+    response = {**result.model_dump(), "email_forensics": mask_forensics(forensics, masking_enabled(mask))}
     if case:
         # Prosecution-ready chain-of-custody case file (embeds the ledger status).
-        response["case_file"] = build_email_case(response, forensics)
+        case_file = build_email_case({**result.model_dump(), "email_forensics": forensics}, forensics)
+        # Evidence-preservation logging: the export itself is auditable.
+        log_preservation("case_file_export", case_file["chain_of_custody"]["evidence_digest"])
+        response["case_file"] = case_file
     return response
+
+
+@app.get("/privacy/policy")
+def privacy_policy() -> dict:
+    """The active privacy/retention/preservation policy [SIH26106 KC6]."""
+    return retention_policy()
 
 
 @app.post("/email/campaign")

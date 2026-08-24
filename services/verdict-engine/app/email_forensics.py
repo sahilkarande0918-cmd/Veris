@@ -296,6 +296,7 @@ def analyze_email(raw: str | bytes) -> tuple[list[Signal], dict]:
         "from_name": from_name,
         "from_addr": from_addr,
         "from_domain": _domain_of(msg["From"]),
+        "to": parseaddr(msg["To"] or "")[1],
         "return_path": _domain_of(msg["Return-Path"]),
         "reply_to": _domain_of(msg["Reply-To"]),
         "subject": str(msg["Subject"] or ""),
