@@ -230,7 +230,14 @@ direct-actor); seed 4-email fixture set under `fixtures/email/campaign/`.
 only; evidence/ledger keep real data), `GET /privacy/policy` (retention +
 never-purge preservation rule), and evidence-preservation logging (case-file
 exports appended to the ledger as `preservation` events).
-**NEXT:** (9) investigator console UI (frontend). 143 tests.
+(9) **DONE** — investigator console (`apps/mobile/src/app/email.tsx`): paste
+`.eml` → forensic dashboard (colour-coded verdict + score, SPF/DKIM/DMARC
+indicators, sender trace + geolocation, domain intel, cited evidence, proactive
+high-risk banner), consumes `/check/email`. Home has a prominent entry point.
+APK defaults to the live engine. **Follow-on:** mobile campaign-graph view needs
+a small JSON variant of `/email/campaign` (currently multipart-only) + a redeploy.
+143 backend tests. **SIH26106 feature set complete** (table-stakes + both
+differentiators + privacy + console); engine deployed live.
 
 **Why a hash-chain, not a blockchain (theme = "Blockchain & Cybersecurity").**
 We needed tamper-evidence and chain-of-custody, not distributed consensus. A
