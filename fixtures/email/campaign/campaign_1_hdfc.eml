@@ -1,0 +1,19 @@
+Return-Path: <bounce@mailer-xyz.ru>
+Received: from mx.recipient.gov.in (mx.recipient.gov.in [10.0.0.5]) by inbound.recipient.gov.in with ESMTP id C1A1; Sat, 22 Aug 2026 11:00:05 +0530
+Received: from smtp.mailer-xyz.ru (unknown [185.220.101.5]) by mx.recipient.gov.in with ESMTP id R1L1; Sat, 22 Aug 2026 11:00:03 +0530
+Authentication-Results: mx.recipient.gov.in; spf=fail smtp.mailfrom=mailer-xyz.ru; dkim=fail; dmarc=fail header.from=hdfc-secure-verify.top
+X-Mailer: PHPMailer 6.1.0 (campaign-kit-v3)
+From: "HDFC Bank Alerts" <alerts@hdfc-secure-verify.top>
+Reply-To: <refund-desk@gmail-support.info>
+To: victim1@recipient.gov.in
+Subject: Urgent: verify your HDFC Bank account KYC to avoid block
+Message-ID: <camp-1-abc@mailer-xyz.ru>
+Date: Sat, 22 Aug 2026 11:00:00 +0530
+Content-Type: text/plain; charset="utf-8"
+
+Dear Customer,
+
+Your HDFC Bank account will be suspended. Verify your KYC immediately:
+https://hdfc-secure-verify.top/login
+
+HDFC Bank Security Team

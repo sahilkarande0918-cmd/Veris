@@ -19,6 +19,7 @@ from verdict import Subject, VerdictResult
 from . import ENGINE_VERSION
 from .apk import analyze as analyze_apk
 from .checks import host_of, registered_domain, run_offline_checks
+from .campaign import correlate
 from .case_file import build_email_case
 from .email_forensics import analyze_email, classify_label
 from .enrich import enrich, is_offline
@@ -377,3 +378,17 @@ async def check_email(
         # Prosecution-ready chain-of-custody case file (embeds the ledger status).
         response["case_file"] = build_email_case(response, forensics)
     return response
+
+
+@app.post("/email/campaign")
+async def email_campaign(files: list[UploadFile] = File(...)) -> dict:
+    """Correlate several .eml into campaigns by shared infrastructure [SIH26106 #8].
+
+    Graph-based (networkx): shared originating IP / ASN / X-Mailer / reply-to drop
+    / relay / return-path cluster emails into a campaign with a confidence-based
+    attribution (spoofed domain vs anonymized infra vs direct actor). Offline.
+    """
+    if len(files) < 2:
+        raise HTTPException(status_code=422, detail="provide at least two .eml files to correlate")
+    raws = [await _read_capped(f, MAX_EML_BYTES, "email") for f in files]
+    return correlate(raws)

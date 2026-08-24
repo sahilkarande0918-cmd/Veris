@@ -1,0 +1,19 @@
+Return-Path: <bounce@mailer-xyz.ru>
+Received: from mx.recipient.gov.in (mx.recipient.gov.in [10.0.0.5]) by inbound.recipient.gov.in with ESMTP id C3A3; Sat, 22 Aug 2026 13:00:05 +0530
+Received: from smtp.mailer-xyz.ru (unknown [185.220.101.5]) by mx.recipient.gov.in with ESMTP id R3L3; Sat, 22 Aug 2026 13:00:03 +0530
+Authentication-Results: mx.recipient.gov.in; spf=fail smtp.mailfrom=mailer-xyz.ru; dkim=fail; dmarc=fail header.from=sbi-account-secure.top
+X-Mailer: PHPMailer 6.1.0 (campaign-kit-v3)
+From: "State Bank Alerts" <alerts@sbi-account-secure.top>
+Reply-To: <refund-desk@gmail-support.info>
+To: victim3@recipient.gov.in
+Subject: Urgent: verify your State Bank account KYC to avoid block
+Message-ID: <camp-3-abc@mailer-xyz.ru>
+Date: Sat, 22 Aug 2026 13:00:00 +0530
+Content-Type: text/plain; charset="utf-8"
+
+Dear Customer,
+
+Your State Bank account will be suspended. Verify your KYC immediately:
+https://sbi-account-secure.top/login
+
+State Bank Security Team

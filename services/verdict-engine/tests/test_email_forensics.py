@@ -131,5 +131,35 @@ def test_case_file_reports_a_broken_chain_rather_than_hiding_it(monkeypatch):
     assert "altered" in cf["chain_of_custody"]["ledger_status"]
 
 
+def test_four_emails_cluster_into_one_campaign():
+    from app.campaign import correlate
+
+    raws = [p.read_text(encoding="utf-8") for p in sorted((EMAILS / "campaign").glob("*.eml"))]
+    assert len(raws) == 4
+    result = correlate(raws)
+    assert result["email_count"] == 4
+    assert result["campaign_count"] == 1  # "these 4 = 1 campaign"
+    camp = max(result["campaigns"], key=lambda c: c["size"])
+    assert camp["size"] == 4
+    assert camp["confidence"] > 0.5
+    # shared infrastructure was identified across the 4 spoofed senders
+    assert "originating_ip" in camp["shared_artifacts"]
+    assert "xmailer" in camp["shared_artifacts"] or "reply_to" in camp["shared_artifacts"]
+    assert camp["attribution"] in ("spoofed_domain", "anonymized_infrastructure", "direct_actor")
+
+
+def test_unrelated_emails_do_not_cluster():
+    from app.campaign import correlate
+
+    raws = [_load("phishing_kyc.eml"), _load("legit_statement.eml")]
+    result = correlate(raws)
+    assert result["campaign_count"] == 0  # no shared infrastructure
+
+
+def test_campaign_endpoint_needs_at_least_two():
+    resp = client.post("/email/campaign", files=[("files", ("a.eml", _load("phishing_kyc.eml"), "message/rfc822"))])
+    assert resp.status_code == 422
+
+
 def test_empty_input_is_rejected():
     assert client.post("/check/email", data={}).status_code == 422
