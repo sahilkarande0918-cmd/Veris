@@ -72,7 +72,19 @@ Protection, Scan.
 - QR to download: `docs/download-qr.png` (points at releases/latest).
 - Install guide: `docs/INSTALL.md`.
 
-## The hosting question (open decision)
+## Hosting — DEPLOYED (2026-08-24)
+
+**Live engine: `https://veris-engine.onrender.com`** (Render free tier, Docker
+Blueprint `render.yaml`, `VERIS_DEMO=1`). Verified end-to-end on the public URL:
+`/health`, `/check`, `/check/email` (full forensics), `/email/campaign` (4→1
+campaign), `/privacy/policy`, and the tamper demo (break→rebuild→green). Idle RSS
+~180 MB (fits the 512 MB free tier). Cold-starts ~50 s after 15 min idle — add an
+UptimeRobot HTTP monitor on `/health` every 5 min to keep it warm. Ledger is
+ephemeral (resets on redeploy) — fine for the live tamper demo. `.dockerignore`
+keeps the local `.venv`/caches out of the 1.2 GB image.
+Point the app at it: Protection → Engine URL → `https://veris-engine.onrender.com` → Save.
+
+## The hosting question (earlier open decision — now resolved above)
 
 App must "work on any internet." App OPENS standalone anywhere; on-device
 features (QR/OCR/notification guard/call screen/offline triage) work anywhere
