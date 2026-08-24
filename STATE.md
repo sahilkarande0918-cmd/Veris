@@ -214,7 +214,11 @@ overrides hard signals. Everything runs offline via bundled fixtures.
 clustering (IP/ASN/X-Mailer/reply-drop/relay) -> "these 4 = 1 campaign" at 99%
 with confidence-based attribution (spoofed-domain / anonymized-infra /
 direct-actor); seed 4-email fixture set under `fixtures/email/campaign/`.
-**NEXT:** (9) investigator console UI, (10) privacy/masking layer. 137 tests.
+(10) **DONE** — privacy backend: PII masking (`?mask`/`VERIS_MASK_PII`, display
+only; evidence/ledger keep real data), `GET /privacy/policy` (retention +
+never-purge preservation rule), and evidence-preservation logging (case-file
+exports appended to the ledger as `preservation` events).
+**NEXT:** (9) investigator console UI (frontend). 143 tests.
 
 **Why a hash-chain, not a blockchain (theme = "Blockchain & Cybersecurity").**
 We needed tamper-evidence and chain-of-custody, not distributed consensus. A
