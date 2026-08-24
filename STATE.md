@@ -207,10 +207,14 @@ overrides hard signals. Everything runs offline via bundled fixtures.
 | Domain intel | `app/domain_intel.py`: WHOIS age/registrar + DNS/MX (offline map + python-whois/dnspython) |
 | Links/attachments | body links + sender domain routed through the EXISTING `run_offline_checks` url engine |
 
-**DIFFERENTIATORS — NEXT (not built yet):** (7) chain-of-custody forensic case
-file + prosecution-ready export on the existing ledger; (8) `networkx`
-graph-based campaign attribution on the seeded 4-email set. Then (9) investigator
-console UI, (10) privacy/masking layer.
+**DIFFERENTIATORS — DONE:** (7) chain-of-custody forensic case file
+(`/check/email?case=true`): grouped findings + chain-of-custody (signed head +
+`/ledger/verify` status) + CERT-In/NCRP/1930 export, prosecution-ready. (8)
+`networkx` graph campaign attribution (`/email/campaign`): shared-artifact
+clustering (IP/ASN/X-Mailer/reply-drop/relay) -> "these 4 = 1 campaign" at 99%
+with confidence-based attribution (spoofed-domain / anonymized-infra /
+direct-actor); seed 4-email fixture set under `fixtures/email/campaign/`.
+**NEXT:** (9) investigator console UI, (10) privacy/masking layer. 137 tests.
 
 **Why a hash-chain, not a blockchain (theme = "Blockchain & Cybersecurity").**
 We needed tamper-evidence and chain-of-custody, not distributed consensus. A
