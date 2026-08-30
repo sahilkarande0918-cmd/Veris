@@ -7,7 +7,7 @@
  * module only if we ever need to *read back* whether the role is held.
  */
 
-import { Platform } from "react-native"
+import { PermissionsAndroid, Platform } from "react-native"
 import * as IntentLauncher from "expo-intent-launcher"
 
 const REQUEST_ROLE = "android.app.role.action.REQUEST_ROLE"
@@ -37,6 +37,27 @@ export async function requestCallScreeningRole(): Promise<RoleOutcome> {
     return result.resultCode === 1 ? "granted" : "declined"
   } catch {
     return "unavailable"
+  }
+}
+
+/**
+ * Runtime permissions the caller-ID card needs: Phone state (to know a call is
+ * ringing) and Call log (to read the ringing number on Android 9+). READ_CALL_LOG
+ * is Play-restricted, so this is a sideload-only capability.
+ */
+export async function requestCallReadPermissions(): Promise<boolean> {
+  if (Platform.OS !== "android") return false
+  try {
+    const res = await PermissionsAndroid.requestMultiple([
+      "android.permission.READ_PHONE_STATE",
+      "android.permission.READ_CALL_LOG",
+    ] as never)
+    return (
+      res["android.permission.READ_PHONE_STATE" as keyof typeof res] === "granted" &&
+      res["android.permission.READ_CALL_LOG" as keyof typeof res] === "granted"
+    )
+  } catch {
+    return false
   }
 }
 

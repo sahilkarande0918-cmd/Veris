@@ -4,6 +4,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 
 import {
   isSupported,
   openDefaultAppsSettings,
+  requestCallReadPermissions,
   requestCallScreeningRole,
   type RoleOutcome,
 } from "../lib/callscreening"
@@ -27,40 +28,28 @@ export default function Protect() {
   const [engineUrl, setEngineUrlInput] = useState<string>(getEngineUrl())
 
   async function enableScreening() {
-    // The caller-ID card Veris shows on every call is a notification, so
-    // without POST_NOTIFICATIONS Android silently drops it -- which looks like
-    // "nothing happened". Ask for it as part of enabling screening.
+    // Three grants make the caller-ID card work on every call:
+    //  - POST_NOTIFICATIONS: without it Android silently drops the card.
+    //  - Phone + Call log: to see that a call is ringing and read its number.
+    // The call-screener role is requested too, only so Veris can't be made to
+    // block a call by accident (the service allows everything).
     const canPost = await requestPostNotifications()
-    const notifHint = canPost
-      ? ""
-      : " Also allow notifications for Veris (Settings → Apps → Veris → Notifications) so the call card can appear."
+    const canRead = await requestCallReadPermissions()
+    await requestCallScreeningRole()
 
-    const outcome = await requestCallScreeningRole()
-    if (outcome === "granted") {
+    if (!canRead) {
       setStatus(
-        "Veris is screening calls." +
-          notifHint +
-          " Test it: call from a number that is NOT in your contacts — you'll see a Veris card, and reported scam numbers are rejected before your phone rings.",
+        "Veris needs Phone and Call log access to show a card on every call. " +
+          "Grant them in Settings → Apps → Veris → Permissions, then test with a call.",
       )
       return
     }
-    if (outcome === "declined") {
-      // Android returns 'declined' both when the user refuses AND when Veris
-      // already holds the role (the dialog just closes). So never claim it's
-      // off -- guide the user to verify by testing instead.
-      setStatus(
-        "If Android showed the caller-ID dialog, choose Veris. Already set Veris as the Caller ID & spam app in Settings? Then it's already on — test with a call from a number not in your contacts." +
-          notifHint,
-      )
-      return
-    }
-    setStatus(OUTCOME_TEXT[outcome])
-    if (outcome === "unavailable") {
-      Alert.alert("Open settings?", "Set Veris as the Caller ID & spam app by hand?", [
-        { text: "Not now", style: "cancel" },
-        { text: "Open settings", onPress: () => void openDefaultAppsSettings() },
-      ])
-    }
+    setStatus(
+      (canPost ? "" : "Allow notifications for Veris too, or the card cannot appear. ") +
+        "Call flagging is on. Veris shows a card on every incoming call and flags reported-fraud " +
+        "numbers with the reason — it never blocks the call. On Realme/ColorOS, also enable " +
+        "Auto-start for Veris, or the card may not appear while the app is closed.",
+    )
   }
 
   return (
@@ -99,16 +88,18 @@ export default function Protect() {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.title}>Screen scam calls</Text>
+        <Text style={styles.title}>Flag scam calls</Text>
         <Text style={styles.body}>
-          When a number that is not in your contacts rings, Android gives Veris
-          a few seconds to check it against a list of reported scam numbers
-          stored on your phone. Matches are rejected before your phone rings.
+          On every incoming call, Veris shows a card: a red "likely fraud" card
+          with the reason when the number is on the reported-scam list stored on
+          your phone, and a neutral "checked" card otherwise. It never blocks the
+          call — you always decide.
         </Text>
         <Text style={styles.note}>
-          The list is bundled into the app, so this works with no internet and
-          no server. Veris never reads your call history: screening only ever
-          sees the number currently calling.
+          The list is bundled into the app, so this works with no internet and no
+          server. Reading the ringing number needs Phone and Call-log access, so
+          this build is sideload-only (Google Play restricts that permission).
+          Veris only ever looks at the number currently calling.
         </Text>
         {!isSupported() && (
           <Text style={styles.warn}>Needs Android 10 or newer.</Text>
