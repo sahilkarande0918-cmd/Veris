@@ -10,7 +10,7 @@ import json
 import re
 from functools import lru_cache
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, unquote, urlsplit
 
 import confusables
 import tldextract
@@ -88,6 +88,40 @@ def host_of(value: str) -> str:
     raw = value if "://" in value else f"http://{value}"
     host = (urlsplit(raw).hostname or "").lower()
     return host[4:] if host.startswith("www.") else host
+
+
+# Query parameters that carry the real destination of a redirect wrapper.
+_REDIRECT_PARAMS = (
+    "q", "url", "u", "target", "redirect", "dest", "destination",
+    "next", "continue", "r", "to",
+)
+
+
+def unwrap_redirect(value: str, depth: int = 3) -> str:
+    """Follow inline redirect wrappers to the real destination URL.
+
+    Gmail rewrites every link as ``https://www.google.com/url?q=<real>``, and
+    Outlook Safelinks, Facebook ``l.php?u=``, etc. wrap links the same way. The
+    true target sits in a query parameter, so a host check on the wrapper sees
+    only ``google.com``. This unwraps it deterministically and offline, so the
+    real domain -- not the redirector -- is what Veris judges.
+    """
+    current = value.strip()
+    for _ in range(depth):
+        raw = current if "://" in current else f"http://{current}"
+        query = parse_qs(urlsplit(raw).query)
+        target = None
+        for key in _REDIRECT_PARAMS:
+            values = query.get(key)
+            if values:
+                candidate = unquote(values[0]).strip()
+                if candidate.startswith(("http://", "https://")):
+                    target = candidate
+                    break
+        if not target or target == current:
+            break
+        current = target
+    return current
 
 
 def registered_domain(host: str) -> str:
@@ -435,11 +469,27 @@ def run_offline_checks(subject_type: str, value: str) -> list[Signal]:
     if subject_type not in ("url", "domain"):
         return []
 
+    signals: list[Signal] = []
+    unwrapped = unwrap_redirect(value)
+    if unwrapped != value:
+        signals.append(
+            Signal(
+                id="link_unwrapped",
+                source="Veris redirect unwrap (inline q=/url= target)",
+                value=(
+                    f"link redirects to {host_of(unwrapped)!r}; Veris judged the "
+                    "real destination, not the redirector"
+                ),
+                weight=0,
+            )
+        )
+        value = unwrapped
+
     host = host_of(value)
     if not host:
-        return []
+        return signals
 
-    signals = check_blocklists(value)
+    signals += check_blocklists(value)
     signals += check_userinfo_deception(value)
     signals += check_ip_host(host)
     signals += check_unregulated_lender(host, value)
