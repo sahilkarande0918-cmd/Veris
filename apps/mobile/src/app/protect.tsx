@@ -27,7 +27,33 @@ export default function Protect() {
   const [engineUrl, setEngineUrlInput] = useState<string>(getEngineUrl())
 
   async function enableScreening() {
+    // The caller-ID card Veris shows on every call is a notification, so
+    // without POST_NOTIFICATIONS Android silently drops it -- which looks like
+    // "nothing happened". Ask for it as part of enabling screening.
+    const canPost = await requestPostNotifications()
+    const notifHint = canPost
+      ? ""
+      : " Also allow notifications for Veris (Settings → Apps → Veris → Notifications) so the call card can appear."
+
     const outcome = await requestCallScreeningRole()
+    if (outcome === "granted") {
+      setStatus(
+        "Veris is screening calls." +
+          notifHint +
+          " Test it: call from a number that is NOT in your contacts — you'll see a Veris card, and reported scam numbers are rejected before your phone rings.",
+      )
+      return
+    }
+    if (outcome === "declined") {
+      // Android returns 'declined' both when the user refuses AND when Veris
+      // already holds the role (the dialog just closes). So never claim it's
+      // off -- guide the user to verify by testing instead.
+      setStatus(
+        "If Android showed the caller-ID dialog, choose Veris. Already set Veris as the Caller ID & spam app in Settings? Then it's already on — test with a call from a number not in your contacts." +
+          notifHint,
+      )
+      return
+    }
     setStatus(OUTCOME_TEXT[outcome])
     if (outcome === "unavailable") {
       Alert.alert("Open settings?", "Set Veris as the Caller ID & spam app by hand?", [
