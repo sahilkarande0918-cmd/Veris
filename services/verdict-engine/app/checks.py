@@ -243,6 +243,77 @@ def check_brand_as_subdomain(host: str) -> list[Signal]:
     return []
 
 
+# Government / agency names scam domains graft onto a throwaway registration.
+# Bank names are derived from the curated brand list in _brand_keywords().
+_GOVT_SCAM_KEYWORDS = frozenset({
+    "parivahan", "echallan", "vahan", "incometax", "itr", "epfo", "uidai",
+    "aadhaar", "cowin", "irctc", "rbi", "sebi", "npci", "digilocker",
+    "mygov", "pmkisan", "traisms", "trai",
+})
+
+# Action cues that turn a brand name in a domain into an active phishing lure.
+_PHISH_ACTION_WORDS = frozenset({
+    "verify", "verification", "kyc", "login", "signin", "secure", "update",
+    "account", "otp", "refund", "reward", "rewards", "block", "unblock",
+    "suspend", "alert", "netbanking", "pay", "payment",
+})
+
+
+@lru_cache(maxsize=1)
+def _brand_keywords() -> frozenset[str]:
+    """Bank/brand name tokens scam domains graft on (icici, hdfc, sbi ...).
+
+    Derived from the curated brand list so it stays in sync, plus a trailing
+    'bank' stripped (icicibank -> icici) and the government agencies above.
+    """
+    words: set[str] = set(_GOVT_SCAM_KEYWORDS)
+    for brand_domain in _brand_index():
+        label = brand_domain.split(".")[0]
+        words.add(label)
+        if label.endswith("bank") and len(label) > 4:
+            words.add(label[:-4])
+    return frozenset(words)
+
+
+def check_brand_keyword_in_domain(host: str) -> list[Signal]:
+    """A throwaway domain that grafts a bank or government name onto its label.
+
+    e.g. icici-verify-kyc.co, sbi-rewards.in, echallan-parivahan.in. The
+    registrable domain is not on the allowlist, and a substring check would
+    miss it because there is no real brand *domain* inside -- only the name.
+    Matches whole tokens (split on non-alphanumerics) so an incidental
+    substring does not trip it.
+    """
+    domain = registered_domain(host)
+    if domain in _brand_index() or host in _brand_index():
+        return []
+
+    tokens = {t for t in re.split(r"[^a-z0-9]+", host.lower()) if t}
+    brand_hit = tokens & _brand_keywords()
+    if not brand_hit:
+        return []
+
+    action_hit = tokens & _PHISH_ACTION_WORDS
+    keyword = sorted(brand_hit)[0]
+    if action_hit:
+        weight = 65
+        detail = (
+            f"the brand/agency name {keyword!r} together with the "
+            f"phishing cue {sorted(action_hit)[0]!r}"
+        )
+    else:
+        weight = 50
+        detail = f"the brand/agency name {keyword!r}"
+    return [
+        Signal(
+            id="brand_keyword_in_domain",
+            source="Veris brand-keyword impersonation list (fixtures/brands_in.json + curated agencies)",
+            value=f"{host!r} carries {detail} but is not an official domain",
+            weight=weight,
+        )
+    ]
+
+
 def check_userinfo_deception(url: str) -> list[Signal]:
     """A brand hidden in the URL's userinfo field, before the '@'.
 
@@ -378,6 +449,11 @@ def run_offline_checks(subject_type: str, value: str) -> list[Signal]:
         # A verified brand domain cannot also be impersonating itself.
         return signals + allowlisted
 
-    for check in (check_homoglyph, check_typosquat, check_brand_as_subdomain):
+    for check in (
+        check_homoglyph,
+        check_typosquat,
+        check_brand_as_subdomain,
+        check_brand_keyword_in_domain,
+    ):
         signals.extend(check(host))
     return signals
