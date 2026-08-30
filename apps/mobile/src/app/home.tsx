@@ -115,15 +115,28 @@ export default function Home() {
       () => setError("Waking the secure engine… the first check after the app is idle can take ~30s."),
       6000,
     )
+    // The engine checks one atomic subject -- a link, UPI id or phone number.
+    // A pasted SMS is a whole paragraph, so pull the checkable token out of it
+    // first (the screenshot path already does this). A 422 we were seeing was
+    // the engine correctly refusing a paragraph, NOT a connection failure.
+    const candidate = firstCandidate(value)
     try {
-      const result = await check(value)
+      if (!candidate) {
+        // No link/UPI/number to send the engine; score the wording on-device.
+        const local = triageOnDevice(value)
+        setLastResult(local)
+        setError(
+          "No link, UPI id, or phone number was found in this text, so Veris checked the wording on your phone. Share a message that contains a link for the full engine check.",
+        )
+        router.push("/result")
+        return
+      }
+      const result = await check(candidate)
       setError(null)
       setLastResult(result)
       router.push("/result")
     } catch (caught) {
-      // The server is unreachable. Rather than failing, score it on the phone:
-      // a weaker check, clearly labelled, beats no answer when someone is
-      // standing at a counter deciding whether to pay.
+      // A genuine network/server failure: score it on the phone instead.
       const local = triageOnDevice(value)
       setLastResult(local)
       const reason = caught instanceof Error ? caught.message : String(caught)
