@@ -177,11 +177,22 @@ async function ensureToken(base: string): Promise<string | null> {
   }
   try {
     const id = await getDeviceId()
-    const res = await fetch(`${base}/auth/device`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ device_id: id }),
-    })
+    // Own short timeout: this runs before the main request, so a cold/hung
+    // /auth/device must never block or poison the actual /check call. The token
+    // is optional (auth_required=false) -- proceed tokenless if it doesn't answer.
+    const ctl = new AbortController()
+    const t = setTimeout(() => ctl.abort(), 8000)
+    let res: Response
+    try {
+      res = await fetch(`${base}/auth/device`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ device_id: id }),
+        signal: ctl.signal,
+      })
+    } finally {
+      clearTimeout(t)
+    }
     if (!res.ok) return null // older engine or unreachable: proceed tokenless
     const data = await res.json()
     if (data?.token) {

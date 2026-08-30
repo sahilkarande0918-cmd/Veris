@@ -49,7 +49,7 @@ export default function Home() {
     warmEngine()
     health()
       .then((h) => setEngine(`engine ${h.engine_version} (${h.mode})`))
-      .catch(() => setEngine("engine unreachable"))
+      .catch((e) => setEngine("unreachable: " + (e instanceof Error ? e.message : String(e))))
   }, [])
 
   // A link shared from SMS, WhatsApp or a browser lands here and is checked
@@ -126,8 +126,10 @@ export default function Home() {
       // standing at a counter deciding whether to pay.
       const local = triageOnDevice(value)
       setLastResult(local)
+      const reason = caught instanceof Error ? caught.message : String(caught)
       setError(
-        "Could not reach the Veris server, so this was checked on your phone instead. It is a lighter check -- run the full one when you have a connection.",
+        "Could not reach the Veris server, so this was checked on your phone instead. Reason: " +
+          reason,
       )
       router.push("/result")
     } finally {
