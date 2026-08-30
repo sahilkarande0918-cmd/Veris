@@ -14,7 +14,7 @@ import { router } from "expo-router"
 import { useShareIntentContext } from "expo-share-intent"
 import { LinearGradient } from "expo-linear-gradient"
 
-import { API_BASE, check, health } from "../lib/api"
+import { API_BASE, check, health, warmEngine } from "../lib/api"
 import { light } from "../lib/theme"
 import { setLastResult } from "../lib/store"
 import { triageOnDevice } from "../lib/ondevice"
@@ -43,6 +43,10 @@ export default function Home() {
   }, [])
 
   useEffect(() => {
+    // Wake a possibly-sleeping hosted engine right away, then probe it. Both
+    // tolerate a cold start (retry with a long budget) so a first-launch delay
+    // no longer shows a false "unreachable".
+    warmEngine()
     health()
       .then((h) => setEngine(`engine ${h.engine_version} (${h.mode})`))
       .catch(() => setEngine("engine unreachable"))
@@ -107,8 +111,13 @@ export default function Home() {
     if (!value || busy) return
     setBusy(true)
     setError(null)
+    const slow = setTimeout(
+      () => setError("Waking the secure engine… the first check after the app is idle can take ~30s."),
+      6000,
+    )
     try {
       const result = await check(value)
+      setError(null)
       setLastResult(result)
       router.push("/result")
     } catch (caught) {
@@ -122,6 +131,7 @@ export default function Home() {
       )
       router.push("/result")
     } finally {
+      clearTimeout(slow)
       setBusy(false)
     }
   }

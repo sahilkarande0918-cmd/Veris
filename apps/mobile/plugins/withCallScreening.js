@@ -112,6 +112,19 @@ function withCallScreeningManifest(config) {
         },
       ],
     })
+
+    // Needed to post the caller-ID card on Android 13+ (harmless if the
+    // notification-guard plugin already added it).
+    const manifest = cfg.modResults.manifest
+    manifest["uses-permission"] = manifest["uses-permission"] ?? []
+    const hasPerm = manifest["uses-permission"].some(
+      (p) => p.$?.["android:name"] === "android.permission.POST_NOTIFICATIONS",
+    )
+    if (!hasPerm) {
+      manifest["uses-permission"].push({
+        $: { "android:name": "android.permission.POST_NOTIFICATIONS" },
+      })
+    }
     return cfg
   })
 }
@@ -119,21 +132,33 @@ function withCallScreeningManifest(config) {
 function kotlinSource(pkg) {
   return `package ${kotlinPackage(pkg)}
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Intent
+import android.os.Build
 import android.telecom.Call
 import android.telecom.CallScreeningService
+import androidx.core.app.NotificationCompat
 import java.io.BufferedReader
 
 /**
- * Screens incoming calls against a scam list bundled in the APK.
+ * Screens incoming calls against a scam list bundled in the APK and, like a
+ * caller-ID app, shows a card on EVERY incoming call so the user sees Veris
+ * checked it.
  *
- * Android gives a screening service only a few seconds to respond, so this
- * does no network I/O at all -- the list is read once from assets and cached.
- * A number we do not recognise is always allowed through: a fraud tool that
- * silently swallows calls is worse than one that does nothing.
+ * Android gives a screening service only a few seconds to respond, so this does
+ * no network I/O -- the list is read once from assets and cached. A number we
+ * do not recognise is always allowed through (a fraud tool that silently
+ * swallows calls is worse than one that does nothing); a reported number is
+ * rejected AND flagged with a red alert. We only ever post our own
+ * notification -- we never read the call log or the user's contacts.
  */
 class VerisCallScreeningService : CallScreeningService() {
 
     companion object {
+        private const val CHANNEL_ID = "veris_call_alerts"
+
         /** Last 10 digits of every reported number. Loaded once per process. */
         @Volatile
         private var scamNumbers: Set<String>? = null
@@ -166,7 +191,8 @@ class VerisCallScreeningService : CallScreeningService() {
     }
 
     override fun onScreenCall(callDetails: Call.Details) {
-        val incoming = normalise(callDetails.handle?.schemeSpecificPart)
+        val raw = callDetails.handle?.schemeSpecificPart
+        val incoming = normalise(raw)
         val isScam = incoming.length == 10 && numbers().contains(incoming)
 
         val response = CallResponse.Builder()
@@ -177,7 +203,53 @@ class VerisCallScreeningService : CallScreeningService() {
             .setSkipNotification(isScam)
             .build()
 
+        // Caller-ID card on every incoming call. Wrapped so a UI failure can
+        // never break the phone's call path.
+        try {
+            alert(if (raw.isNullOrBlank()) "Unknown number" else raw, isScam)
+        } catch (e: Exception) {
+        }
+
         respondToCall(callDetails, response)
+    }
+
+    private fun alert(display: String, isScam: Boolean) {
+        val manager = getSystemService(NotificationManager::class.java) ?: return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            manager.createNotificationChannel(
+                NotificationChannel(CHANNEL_ID, "Call alerts", NotificationManager.IMPORTANCE_HIGH).apply {
+                    description = "Flags reported fraud numbers on incoming calls"
+                }
+            )
+        }
+
+        val title = if (isScam) "⚠️ Fraud call blocked" else "Veris checked this call"
+        val body = if (isScam)
+            display + " is a reported scam number. Veris rejected the call."
+        else
+            display + " is not in the reported-fraud list. Stay alert -- never share an OTP or pay on a call."
+
+        val open = Intent(this, MainActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        }
+        val pending = PendingIntent.getActivity(
+            this, display.hashCode(), open,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+
+        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.stat_sys_warning)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_CALL)
+            .setAutoCancel(true)
+            .setContentIntent(pending)
+            .setColor(if (isScam) 0xFFDC2626.toInt() else 0xFF16A34A.toInt())
+            .build()
+
+        manager.notify(display.hashCode(), notification)
     }
 }
 `

@@ -126,7 +126,12 @@ export async function setEngineUrl(url: string): Promise<void> {
   }
 }
 
-const TIMEOUT_MS = 20000
+// A warm engine answers in well under a second, so abort a dead call quickly.
+// The hosted engine (Render free tier) sleeps after idle and its first wake can
+// take 30-50s, so on a timeout we retry ONCE with a much longer budget before
+// giving up to on-device triage.
+const TIMEOUT_MS = 15000
+const COLD_START_MS = 55000
 
 // --- Per-device API token (Tier 2 #7) -------------------------------------
 // The engine issues a stateless token per device. We register once per engine
@@ -195,9 +200,14 @@ async function ensureToken(base: string): Promise<string | null> {
   return null
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function request<T>(
+  path: string,
+  init?: RequestInit,
+  timeoutMs: number = TIMEOUT_MS,
+  isRetry = false,
+): Promise<T> {
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
     // FormData sets its own multipart Content-Type (with a boundary); forcing
     // JSON would corrupt the upload. JSON callers are unchanged.
@@ -231,6 +241,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     return (await response.json()) as T
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
+      // Likely a cold start: the hosted engine was asleep. Retry once with a
+      // budget long enough for it to wake before we fall back to on-device.
+      if (!isRetry) {
+        clearTimeout(timer)
+        return request<T>(path, init, COLD_START_MS, true)
+      }
       throw new Error(
         `The verdict engine did not respond at ${currentBase}. Set the Engine URL in Protection settings, or check it is running.`,
       )
@@ -239,6 +255,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   } finally {
     clearTimeout(timer)
   }
+}
+
+/**
+ * Fire-and-forget wake-up for a sleeping hosted engine. Safe to call on app
+ * launch: it pings /health with a cold-start budget and ignores every error,
+ * so by the time the user runs a real check the engine is already awake.
+ */
+export function warmEngine(): void {
+  request("/health", undefined, COLD_START_MS, true).catch(() => {})
 }
 
 export function check(
