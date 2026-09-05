@@ -130,18 +130,104 @@ function withCallManifest(config) {
 function screeningSource(pkg) {
   return `package ${kotlinPackage(pkg)}
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Intent
+import android.os.Build
 import android.telecom.Call
 import android.telecom.CallScreeningService
+import androidx.core.app.NotificationCompat
+import java.io.BufferedReader
 
 /**
- * Kept only so the call-screener role the user granted stays valid. It never
- * blocks anything -- the visible caller-ID card is posted by VerisCallReceiver,
- * which fires for every call. Allowing here guarantees Veris cannot swallow a
- * call the user wanted.
+ * Flags fraud calls WITH a reason and NEVER blocks. This path is the reliable
+ * one on every phone: the telecom system hands us the number directly (no
+ * READ_CALL_LOG) and binds this service on demand (no Auto-start needed), so it
+ * works with just notification permission. It fires for numbers not in the
+ * user's contacts -- exactly where fraud calls come from. VerisCallReceiver
+ * additionally covers contacts where the OS allows it. Both post the same
+ * card id, so a call seen by both shows one card, not two.
  */
 class VerisCallScreeningService : CallScreeningService() {
+
+    companion object {
+        private const val CHANNEL_ID = "veris_call_alerts"
+        private const val CARD_ID = 1001
+        @Volatile private var scamNumbers: Set<String>? = null
+
+        fun normalise(raw: String?): String {
+            val digits = (raw ?: "").filter { it.isDigit() }
+            return if (digits.length > 10) digits.takeLast(10) else digits
+        }
+    }
+
+    private fun numbers(): Set<String> {
+        scamNumbers?.let { return it }
+        val loaded = try {
+            assets.open("veris_scam_numbers.txt").bufferedReader().use { r: BufferedReader ->
+                r.readLines().map { it.trim() }
+                    .filter { it.isNotEmpty() && !it.startsWith("#") }
+                    .map { normalise(it) }.filter { it.length == 10 }.toSet()
+            }
+        } catch (e: Exception) {
+            emptySet()
+        }
+        scamNumbers = loaded
+        return loaded
+    }
+
     override fun onScreenCall(callDetails: Call.Details) {
+        val raw = callDetails.handle?.schemeSpecificPart
+        try {
+            postCard(if (raw.isNullOrBlank()) "Unknown number" else raw, normalise(raw))
+        } catch (e: Exception) {
+        }
+        // Never block: allow every call through, always.
         respondToCall(callDetails, CallResponse.Builder().build())
+    }
+
+    private fun postCard(display: String, key: String) {
+        val isScam = key.length == 10 && numbers().contains(key)
+        val manager = getSystemService(NotificationManager::class.java) ?: return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            manager.createNotificationChannel(
+                NotificationChannel(CHANNEL_ID, "Call alerts", NotificationManager.IMPORTANCE_HIGH).apply {
+                    description = "Flags reported fraud numbers on incoming calls"
+                }
+            )
+        }
+        val title: String
+        val body: String
+        if (isScam) {
+            title = "⚠️ Likely fraud call"
+            body = display +
+                " is on Veris's reported-scam list (reported for OTP / KYC / payment fraud)." +
+                " Veris did NOT block it — do not share an OTP, make a payment, or follow instructions."
+        } else {
+            title = "Veris checked this call"
+            body = display +
+                " is not on the reported-fraud list. Stay alert — never share an OTP or pay on a call."
+        }
+        val open = Intent(this, MainActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        }
+        val pending = PendingIntent.getActivity(
+            this, CARD_ID, open,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val card = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.stat_sys_warning)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_CALL)
+            .setAutoCancel(true)
+            .setContentIntent(pending)
+            .setColor(if (isScam) 0xFFDC2626.toInt() else 0xFF16A34A.toInt())
+            .build()
+        manager.notify(CARD_ID, card)
     }
 }
 `

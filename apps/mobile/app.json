@@ -2,7 +2,7 @@
   "expo": {
     "name": "Veris",
     "slug": "veris",
-    "version": "1.0.5",
+    "version": "1.0.6",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "veris",
@@ -27,7 +27,7 @@
         "android.permission.VIBRATE",
         "android.permission.RECORD_AUDIO"
       ],
-      "versionCode": 6
+      "versionCode": 7
     },
     "ios": {
       "icon": "./assets/expo.icon",
